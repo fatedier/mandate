@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the main Mandate window.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-restart-backend",
+    "opener:allow-open-url",
+    "opener:allow-default-urls"
+  ]
+}

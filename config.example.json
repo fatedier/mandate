@@ -1,0 +1,51 @@
+{
+  "port": 4173,
+  "pollIntervalMs": 2000,
+  "captureLines": 120,
+  "logging": {
+    "level": "info"
+  },
+  "models": {
+    "default": {
+      "model": "openai/gpt-5.5",
+      "reasoningEffort": "provider-default",
+      "modelFallbacks": [
+        {
+          "model": "openai/gpt-5.4-mini",
+          "reasoningEffort": "provider-default"
+        }
+      ]
+    },
+    "providers": {
+      "openai": {
+        "type": "openai",
+        "apiKey": "sk-...",
+        "models": [
+          {
+            "id": "gpt-5.5",
+            "input": ["text", "image"],
+            "supportsReasoning": true
+          },
+          {
+            "id": "gpt-5.4-mini",
+            "input": ["text", "image"]
+          }
+        ]
+      }
+    }
+  },
+  "agent": {
+    "managerModel": {
+      "model": "openai/gpt-5.5",
+      "reasoningEffort": "provider-default"
+    },
+    "managerModelFallbacks": [],
+    "workerModel": {
+      "model": "openai/gpt-5.5",
+      "reasoningEffort": "provider-default"
+    },
+    "workerModelFallbacks": [],
+    "maxStepsPerWake": 200,
+    "compressionThresholdTokens": 170000
+  }
+}

@@ -1,0 +1,521 @@
+@import "tailwindcss";
+/* Canvas runtimes are opaque assets, not sources for the main UI's classes. */
+@source not "../vendor";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/* ============================================================
+   Light theme (isomorphic mapping of the dark-primary design)
+   ============================================================ */
+:root {
+  /* shadcn standard tokens */
+  --background: #f6f7f9;
+  --foreground: #1b1d23;
+  --card: #ffffff;
+  --card-foreground: #1b1d23;
+  --popover: #ffffff;
+  --popover-foreground: #1b1d23;
+  --primary: #5058e8;
+  --primary-foreground: #ffffff;
+  --secondary: #eceef2;
+  --secondary-foreground: #1b1d23;
+  --muted: #eceef2;
+  --muted-foreground: #6b7280;
+  --accent: #eceef2;
+  --accent-foreground: #1b1d23;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e3e5ea;
+  --input: #d9dce3;
+  --ring: #5058e8;
+  /* Radius tiers are declared explicitly in @theme (xs 6 → xl 16) rather than
+     derived from one base, so nesting can respect the concentric rule: an
+     inner corner reads as parallel to its parent only when its radius is the
+     parent's minus the padding between them. --radius stays as the shadcn
+     base that `ui/*` primitives reference. */
+  --radius: 0.75rem;
+
+  /* New semantic tokens (spec §2) */
+  --panel: #fbfbfc;
+  --faint: #9aa0ab;
+  /* Chrome text: nav labels, tab labels, breadcrumbs, column headers. Sits
+     below muted-foreground so orientation furniture recedes behind content
+     without becoming unreadable. */
+  --chrome: #868c98;
+  --primary-soft: #3d43c4;
+  --primary-grad-from: #5f66ee;
+  --status-input: #dc2626;
+  --status-review: #b45309;
+  --phase-design: #7c3aed;
+  --phase-working: #2563eb;
+  --phase-verifying: #0891b2;
+  --phase-done: #059669;
+  --live: #16a34a;
+
+  /* Legacy tokens — names preserved, values remapped (renamed/removed in Phase 4) */
+  --surface-2: #fbfbfc;
+  --terminal-bg: #0a0c10; /* always dark; hosts terminals + canvases */
+  --border-soft: #e9ebef;
+  --soft: #6b7280;
+  --blue: #2563eb;
+  --green: #059669;
+  --amber: #b45309;
+  --red: #dc2626;
+  --violet: #7c3aed;
+  --neutral: #6b7280;
+
+  /* Layered elevation: a tight contact shadow anchors the surface to the page,
+     a wider soft shadow carries its height. A single-layer shadow can only do
+     one of those, which is why one reads as painted-on rather than lifted.
+     No `0 0 0 1px` ring layer — every elevated surface here already carries a
+     real 1px border, and a ring outside it just thickens the edge ambiguously. */
+  --shadow-card:
+    0 1px 2px -1px rgba(24, 28, 40, 0.10),
+    0 2px 6px -2px rgba(24, 28, 40, 0.07);
+  --shadow-card-hover:
+    0 2px 4px -1px rgba(24, 28, 40, 0.11),
+    0 8px 20px -6px rgba(24, 28, 40, 0.14);
+  --shadow-popover:
+    0 2px 4px -2px rgba(24, 28, 40, 0.10),
+    0 12px 32px -8px rgba(24, 28, 40, 0.20);
+  --shadow-primary-btn:
+    0 1px 2px rgba(52, 58, 168, 0.24),
+    0 4px 12px -4px rgba(80, 88, 232, 0.35);
+  /* Glow shadows: half strength in light theme (spec §2.5) */
+  --shadow-glow-blue: 0 0 12px rgba(37, 99, 235, 0.28);
+  --shadow-glow-green: 0 0 12px rgba(5, 150, 105, 0.28);
+  --shadow-glow-amber: 0 0 12px rgba(180, 83, 9, 0.28);
+  --shadow-glow-red: 0 0 12px rgba(220, 38, 38, 0.28);
+  --shadow-glow-violet: 0 0 12px rgba(124, 58, 237, 0.28);
+
+  --diff-add-bg: rgba(5, 150, 105, 0.1);
+  --diff-del-bg: rgba(220, 38, 38, 0.1);
+  --diff-add-fg: #047857;
+  --diff-del-fg: #b91c1c;
+
+  --surface-gradient-from: #ffffff;
+  --surface-gradient-to: #f6f7f9;
+}
+
+/* ============================================================
+   Dark theme — the primary personality (A1 indigo × cool graphite)
+   ============================================================ */
+[data-theme="dark"] {
+  /* Surface ladder. background → panel → card → popover are four even steps,
+     so nesting can be read from value alone. The old values stepped unevenly
+     (4, 6, 4), which is why every level also needed a border to be legible —
+     and stacked outlines are what made the UI read as flat and busy. */
+  --background: #0d0e12;
+  --foreground: #e6e7ec;
+  --card: #191a20;
+  --card-foreground: #e6e7ec;
+  --popover: #202128;
+  --popover-foreground: #e6e7ec;
+  --primary: #6e79f7;
+  --primary-foreground: #0c0d12;
+  --secondary: #202128;
+  --secondary-foreground: #e6e7ec;
+  --muted: #202128;
+  --muted-foreground: #9498a3;
+  --accent: #23242c;
+  --accent-foreground: #e6e7ec;
+  --destructive: #f87171;
+  --destructive-foreground: #0c0d12;
+  --border: #26272f;
+  --input: #2d2e37;
+  --ring: #6e79f7;
+
+  --panel: #131419;
+  --faint: #6b6f7a;
+  /* Chrome text: nav labels, tab labels, breadcrumbs, column headers. Sits
+     below muted-foreground so orientation furniture recedes behind content
+     without becoming unreadable. */
+  --chrome: #7d818c;
+  --primary-soft: #c7cbfa;
+  --primary-grad-from: #7681f8;
+  --status-input: #f87171;
+  --status-review: #fbbf24;
+  --phase-design: #a78bfa;
+  --phase-working: #60a5fa;
+  --phase-verifying: #22d3ee;
+  --phase-done: #34d399;
+  --live: #4ade80;
+
+  --surface-2: #111218;
+  --terminal-bg: #0a0c10;
+  --border-soft: #1e2028;
+  --soft: #8b8e98;
+  --blue: #60a5fa;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --violet: #a78bfa;
+  --neutral: #8b8e98;
+
+  /* Dark elevation can't lean on cast shadows — a black shadow on a near-black
+     background is invisible. The load-bearing layer here is the inset top
+     highlight, which simulates a light source catching the card's top edge;
+     that's what separates the surface from the page. The cast shadows below it
+     only add weight. */
+  --shadow-card:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 4px 12px -4px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  --shadow-card-hover:
+    0 2px 4px rgba(0, 0, 0, 0.55),
+    0 12px 28px -8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-popover:
+    0 4px 8px -4px rgba(0, 0, 0, 0.6),
+    0 20px 56px -12px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-primary-btn:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 4px 14px -4px rgba(110, 121, 247, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --shadow-glow-blue: 0 0 12px rgba(96, 165, 250, 0.55);
+  --shadow-glow-green: 0 0 12px rgba(52, 211, 153, 0.55);
+  --shadow-glow-amber: 0 0 12px rgba(251, 191, 36, 0.55);
+  --shadow-glow-red: 0 0 12px rgba(248, 113, 113, 0.55);
+  --shadow-glow-violet: 0 0 12px rgba(167, 139, 250, 0.55);
+
+  --diff-add-bg: rgba(52, 211, 153, 0.12);
+  --diff-del-bg: rgba(248, 113, 113, 0.12);
+  --diff-add-fg: #34d399;
+  --diff-del-fg: #f87171;
+
+  --surface-gradient-from: #171821;
+  --surface-gradient-to: #15161d;
+}
+
+/* Bridge raw vars into Tailwind v4 utilities (bg-*, text-*, border-*,
+   shadow-*, animate-*). Names here define the utility vocabulary later
+   phases build on. */
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ---- Type ramp ------------------------------------------------------
+     12px is the floor: below it Inter's hinting breaks down and the text
+     reads as fuzzy no matter the weight (bolding small text makes it worse,
+     not clearer — use color contrast instead).
+
+     Line-height and tracking travel WITH the size, so the optical
+     corrections large and small text need in opposite directions happen
+     automatically: big text gets tighter leading and negative tracking,
+     small text gets looser leading and positive tracking. A `leading-*`
+     utility still wins at a call site — Tailwind sorts it after `text-*`.
+
+     Ratios stay near 1.15–1.25 so adjacent steps are distinguishable at a
+     glance; that separation is what makes hierarchy legible.  */
+  --text-2xs: 0.75rem;             /* 12 — metadata, chips, badges */
+  --text-2xs--line-height: 1.35;
+  --text-2xs--letter-spacing: 0.005em;
+  --text-xs: 0.8125rem;            /* 13 — dense secondary text */
+  --text-xs--line-height: 1.4;
+  --text-xs--letter-spacing: 0em;
+  --text-sm: 0.875rem;             /* 14 — body default */
+  --text-sm--line-height: 1.5;
+  --text-sm--letter-spacing: 0em;
+  --text-base: 1rem;               /* 16 — emphasized body */
+  --text-base--line-height: 1.5;
+  --text-base--letter-spacing: -0.005em;
+  --text-lg: 1.125rem;             /* 18 — card titles */
+  --text-lg--line-height: 1.4;
+  --text-lg--letter-spacing: -0.011em;
+  --text-xl: 1.25rem;              /* 20 — section titles */
+  --text-xl--line-height: 1.3;
+  --text-xl--letter-spacing: -0.015em;
+  --text-2xl: 1.5rem;              /* 24 — page titles */
+  --text-2xl--line-height: 1.25;
+  --text-2xl--letter-spacing: -0.019em;
+  --text-3xl: 1.875rem;            /* 30 — hero / empty-state headline */
+  --text-3xl--line-height: 1.2;
+  --text-3xl--letter-spacing: -0.022em;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-panel: var(--panel);
+  --color-faint: var(--faint);
+  --color-chrome: var(--chrome);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-grad-from: var(--primary-grad-from);
+  --color-status-input: var(--status-input);
+  --color-status-review: var(--status-review);
+  --color-phase-design: var(--phase-design);
+  --color-phase-working: var(--phase-working);
+  --color-phase-verifying: var(--phase-verifying);
+  --color-phase-done: var(--phase-done);
+  --color-live: var(--live);
+
+  --color-surface-2: var(--surface-2);
+  --color-terminal-bg: var(--terminal-bg);
+  --color-border-soft: var(--border-soft);
+  --color-soft: var(--soft);
+  --color-blue: var(--blue);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+  --color-violet: var(--violet);
+  --color-neutral: var(--neutral);
+
+  --color-diff-add-bg: var(--diff-add-bg);
+  --color-diff-del-bg: var(--diff-del-bg);
+  --color-diff-add-fg: var(--diff-add-fg);
+  --color-diff-del-fg: var(--diff-del-fg);
+
+  /* Self-named shadow bridges: with `inline`, utilities emit
+     box-shadow: var(--shadow-card), resolved against the unlayered
+     :root/[data-theme] declarations above — which out-cascade Tailwind's
+     @layer theme emission. If those author declarations are ever removed
+     or renamed, these become circular and shadows silently drop. */
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+  --shadow-popover: var(--shadow-popover);
+  --shadow-primary-btn: var(--shadow-primary-btn);
+
+  /* ---- Radius tiers ---------------------------------------------------
+     Four steps, each with one job. Concentric pairing: a 12px card with
+     ≥12px padding takes 8px inner elements; a 16px dialog takes 12px cards.
+     Mixing 4px and 12px corners inside one padding box is what makes
+     nesting look unresolved. */
+  --radius-xs: 0.375rem;  /*  6 — micro chips, tags, dots' containers */
+  --radius-sm: 0.5rem;    /*  8 — elements nested inside a card */
+  --radius-md: 0.625rem;  /* 10 — buttons, inputs, menu items */
+  --radius-lg: 0.75rem;   /* 12 — cards, panels */
+  --radius-xl: 1rem;      /* 16 — dialogs, sheets */
+
+  /* ---- Motion ---------------------------------------------------------
+     Overriding the defaults upgrades every bare `transition*` utility at
+     once, so call sites don't each have to restate a duration. 180ms with a
+     decelerating curve reads as responsive without feeling abrupt; Tailwind's
+     stock 150ms ease is slightly too linear to feel considered. */
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --ease-ui-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --animate-live: live-pulse 1.6s ease-in-out infinite;
+
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  /* The assistant dock swaps between a 40px rail and the full panel — two
+     different subtrees, so there is nothing for a width transition to
+     interpolate. The panel's column is already laid out when it mounts, so
+     sliding its contents in from the right reads as the panel arriving rather
+     than appearing. Same duration and curve as the rest of the UI. */
+  --animate-dock-in: dock-slide-in 180ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes dock-slide-in {
+    from { opacity: 0; transform: translateX(1.25rem); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  --animate-rail-in: rail-fade-in 180ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes rail-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes setting-flash {
+    0%, 55% { background-color: color-mix(in oklab, var(--primary) 12%, transparent); }
+    100% { background-color: transparent; }
+  }
+}
+
+@layer base {
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Inter Variable ships an optical size axis; letting the browser drive it
+       thickens stems slightly at small sizes and refines them at large ones,
+       which is most of what "crisp" means for a variable font. cv05 gives the
+       tailed lowercase l so l/1/I stay distinguishable in identifiers. */
+    font-optical-sizing: auto;
+    font-feature-settings: "cv05" 1;
+    /* Browser default 16px so Tailwind rem text-* classes match industry
+       norms (text-sm = 14px, text-base = 16px). Per-size line-heights from the
+       type ramp override this wherever a text-* utility is applied. */
+    line-height: 1.45;
+  }
+  #root {
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  /* Headings inherit tracking from their text-* step (see the type ramp) —
+     a single fixed value can't be right for both 18px and 30px. Only the
+     unsized fallback is set here. */
+  h1, h2, h3 { text-wrap: balance; }
+  * { border-color: var(--border); }
+
+  /* Tailwind v4 Preflight resets <button> cursor to default. Restore the
+     conventional pointer cursor for enabled buttons. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  /* The uppercase eyebrow used for nav groups, card meta headers and settings
+     sub-heads — 40+ hand-rolled copies existed before this, at four different
+     sizes and two weights. Bold at 12px muddies Inter's counters, so this is
+     semibold and leans on color contrast instead. Sits in @layer components
+     so a call site can still override any single property with a utility.
+     The var(--text-2xs) reference is what keeps that token emitted despite
+     `@theme inline` — Tailwind preserves theme variables our own CSS uses. */
+  .label-micro {
+    font-size: var(--text-2xs);
+    line-height: 1.35;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Numeric runs (durations, counts, timestamps) that update in place. Without
+     tabular figures the row width breathes on every tick, which reads as
+     jitter. */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status-working {
+    color: var(--phase-working);
+    --status-glow: var(--shadow-glow-blue);
+  }
+  .status-done {
+    color: var(--phase-done);
+    --status-glow: var(--shadow-glow-green);
+  }
+  .status-waiting_user {
+    color: var(--status-input);
+    --status-glow: var(--shadow-glow-red);
+  }
+  .status-running_service {
+    color: var(--violet);
+    --status-glow: var(--shadow-glow-violet);
+  }
+  .status-idle_shell {
+    color: var(--soft);
+    --status-glow: none;
+  }
+  .status-unknown {
+    color: var(--soft);
+    --status-glow: none;
+  }
+}
+
+/* Hide xterm.js's internal vertical scrollbar (drifts into the viewport
+   when panning wide panes; we scroll via touch/wheel + "Bottom" button). */
+.xterm .xterm-scrollable-element > .scrollbar {
+  display: none !important;
+}
+
+@layer utilities {
+  /* Horizontal scroll without the bar. Machine output (diff --stat, ls -l,
+     anything table-shaped) has to keep its character alignment, so it cannot
+     reflow — but a scrollbar inside a chat message is noise, and hard clipping
+     gives no sign the line continues. The right-edge fade is the affordance:
+     it only shows where content actually reaches the edge, so it is invisible
+     on lines that fit. */
+  .scroll-x-quiet {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+  .scroll-x-quiet::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Subtle theme-aware scrollbar for terminal-like preview cards. */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--soft);
+  }
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Settings search jumps to a row that is often already on screen, so the scroll
+   alone doesn't say which one it landed on. The tint holds long enough to find
+   with the eye, then leaves without a trace.
+
+   An attribute, not a class: the settings shell sets it imperatively, and React
+   rewrites `className` from JSX on the row's next re-render — which the memory
+   pane does moments later when its runs arrive — silently dropping the flash
+   mid-animation. React leaves attributes it doesn't render alone. */
+[data-setting-flash] {
+  animation: setting-flash 1.4s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Reduced motion: stop decorative animation loops. Breathing dots and
+   spinners go static — color/presence still carries the signal (spec §11). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-live,
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
+  /* Entrances, not loops: these carry no signal on their own, so they are
+     dropped outright rather than shortened. The dock still appears — it just
+     doesn't travel. */
+  .animate-dock-in,
+  .animate-rail-in {
+    animation: none !important;
+  }
+  /* This one does carry a signal — which row the search landed on — so it is
+     not dropped, only frozen. The shell clears the attribute on a timer, so
+     the tint still removes itself. */
+  [data-setting-flash] {
+    animation: none !important;
+    background-color: color-mix(in oklab, var(--primary) 12%, transparent);
+  }
+}

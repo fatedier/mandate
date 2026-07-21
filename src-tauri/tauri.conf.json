@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Mandate",
+  "version": "0.1.0",
+  "identifier": "com.fatedier.mandate",
+  "build": {
+    "beforeBuildCommand": "bun src-tauri/scripts/prepare-sidecar.ts",
+    "beforeDevCommand": "bun src-tauri/scripts/prepare-sidecar.ts --debug",
+    "devUrl": "http://127.0.0.1:4173",
+    "frontendDist": "../dist/client"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
+    "externalBin": ["binaries/mandate"],
+    "macOS": {
+      "hardenedRuntime": false,
+      "signingIdentity": "-",
+      "infoPlist": "Info.plist"
+    }
+  }
+}
