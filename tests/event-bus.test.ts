@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { AppEventBus, type LifecycleEvent } from "../src/server/runtime/events.js";
+import type { FeatureDto, ProjectDto } from "../src/shared/api-contracts.js";
 
 test("AppEventBus delivers events to matching subscribers", () => {
   const bus = new AppEventBus();
@@ -9,9 +10,9 @@ test("AppEventBus delivers events to matching subscribers", () => {
     received.push(event);
   });
 
-  bus.emit({ type: "lifecycle", event: { type: "projectCreated", data: { id: "p1" } } });
+  bus.emit({ type: "lifecycle", event: { type: "projectCreated", data: { id: "p1" } as ProjectDto } });
 
-  expect(received).toEqual([{ type: "projectCreated", data: { id: "p1" } }]);
+  expect(received).toEqual([{ type: "projectCreated", data: { id: "p1" } as ProjectDto }]);
 });
 
 test("AppEventBus unsubscribe removes handler", () => {
@@ -23,7 +24,7 @@ test("AppEventBus unsubscribe removes handler", () => {
   });
   unsubscribe();
 
-  bus.emit({ type: "lifecycle", event: { type: "featureCreated", data: { id: "f1" } } });
+  bus.emit({ type: "lifecycle", event: { type: "featureCreated", data: { id: "f1" } as FeatureDto } });
 
   expect(count).toBe(0);
 });

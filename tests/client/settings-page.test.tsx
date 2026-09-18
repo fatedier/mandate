@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { api } from "@/lib/api-paths";
 import { SettingsPage } from "@/routes/settings/SettingsPage";
+import { useUIStore } from "@/store/ui";
 import type { SettingsConfigResponse } from "@/routes/settings/types";
 
 let root: Root | null = null;
@@ -122,10 +123,13 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  act(() => useUIStore.setState({ sidebarCollapsed: false }));
 });
 
 describe("SettingsPage shell", () => {
   test("?tab=providers opens Providers; the tab strip marks it current; clicking Routing switches panes", async () => {
+    // The strip only exists while the app sidebar's section nav is gone.
+    act(() => useUIStore.setState({ sidebarCollapsed: true }));
     await withFetch(
       (call) => {
         if (call.url === api.settingsConfig) return jsonResponse(mockConfig());
@@ -164,13 +168,14 @@ describe("SettingsPage shell", () => {
     );
   });
 
-  test("adaptive shell renders the tab strip under a @container wrapper", async () => {
+  test("the in-page tab strip exists only while the sidebar's section nav is gone, and then it is pill tabs", async () => {
     await withFetch(
       (call) => {
         if (call.url === api.settingsConfig) return jsonResponse(mockConfig());
         return jsonResponse({ ok: true, models: [] });
       },
       async () => {
+        act(() => useUIStore.setState({ sidebarCollapsed: false }));
         render(
           <MemoryRouter initialEntries={["/settings"]}>
             <SettingsPage />
@@ -178,27 +183,25 @@ describe("SettingsPage shell", () => {
         );
         await settle();
 
-        // happy-dom cannot evaluate container queries, so assert the structure:
-        // one @container wrapper and the two nav renderings carrying the
-        // complementary visibility classes.
-        const wrapper = Array.from(container!.querySelectorAll("div")).find((el) =>
-          el.className.split(" ").includes("@container")
-        );
-        expect(wrapper).toBeDefined();
+        // The grouped rail lives in the app sidebar (tests/settings-sidebar-nav).
+        // While it is visible the page must not repeat it — at the 50/50 split
+        // the old width rule (<40rem) showed both.
+        expect(container!.querySelector("nav") === null).toBe(true);
 
-        // The grouped rail lives in the app sidebar now (tests/settings-sidebar-nav);
-        // the page carries only the flat strip, hidden at width by default.
-        const navs = Array.from(container!.querySelectorAll("nav"));
-        expect(navs).toHaveLength(1);
-        const tabStrip = navs[0]!;
-        expect(tabStrip.className).toContain("@[40rem]:hidden");
-        expect(tabStrip.className).toContain("flex");
-        expect(tabStrip.textContent).not.toContain("Workspace");
-
-        // Default section (no ?tab): General current in the strip.
+        // Sidebar collapsed: the strip takes over, as the shipped pill tabs,
+        // never the old underline tabs.
+        act(() => useUIStore.setState({ sidebarCollapsed: true }));
+        await settle();
+        const strip = container!.querySelector('nav[data-slot="page-tabs"]')!;
+        expect(strip === null).toBe(false);
+        expect(strip.getAttribute("aria-label")).toBe("Settings sections");
+        expect(strip.textContent).not.toContain("Workspace");
+        expect(container!.innerHTML.includes("border-b-2")).toBe(false);
+        expect(container!.innerHTML.includes("@[40rem]:hidden")).toBe(false);
         const current = currentNavItems();
         expect(current).toHaveLength(1);
         for (const el of current) expect(el.textContent).toBe("General");
+        for (const t of ["h-7", "rounded-sm", "bg-sel"]) expect(current[0]!.className.split(/\s+/)).toContain(t);
       }
     );
   });

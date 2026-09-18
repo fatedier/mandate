@@ -230,7 +230,10 @@ test("zoom restores the split, near-bottom Canvas reading position, draft and hi
     const zoomed = await sizes(page);
     expect(zoomed.worker).toBe(zoomed.workspace);
     expect(await inputNode!.evaluate((el) => el.isConnected && !!el.closest("[inert]"))).toBe(true);
-    expect(await page.locator("iframe").first().evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(1120);
+    // The Canvas iframe takes its width from the bridge's fit pass, a task or
+    // two after the zoom lays out the pane, so wait for it rather than
+    // asserting the first measurement (576 under a loaded suite, >1120 alone).
+    await page.waitForFunction(() => (document.querySelector("iframe")?.getBoundingClientRect().width ?? 0) > 1120);
     await page.waitForFunction((top) => document.querySelector("main")!.scrollHeight - document.querySelector("main")!.clientHeight < top, readingPosition);
     fixture.appendMessage("Arrived while the Worker was zoomed");
     await page.getByText("Arrived while the Worker was zoomed", { exact: true }).waitFor({ state: "attached" });
@@ -255,7 +258,7 @@ test("Canvas artifact modal and pane zoom consume separate Esc presses, includin
   const page = await open();
   try {
     await workerButton(page).click();
-    await page.getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("tab", { name: "Canvases", exact: true }).click();
     await page.getByRole("button", { name: "Open canvas: Workspace canvas", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Canvas", exact: true });
     await dialog.waitFor();
@@ -266,7 +269,7 @@ test("Canvas artifact modal and pane zoom consume separate Esc presses, includin
     await page.keyboard.press("Escape");
     expect(await mode(page)).toBe("split");
     expect(new URL(page.url()).pathname).toBe(WORKER_PATH);
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
     await page.locator("iframe").first().contentFrame().getByRole("heading", { name: "Workspace canvas" }).click();
     await page.keyboard.press("Meta+Shift+Enter");
     await page.waitForFunction(() => document.querySelector('[data-pane-mode="worker"]'));
@@ -286,8 +289,8 @@ test("zoom keeps tabs, restores keyboard focus, and ends on Worker navigation", 
     await page.keyboard.press("Escape");
     expect(await page.locator("textarea").evaluate((el) => document.activeElement === el)).toBe(true);
     await workerButton(page).click();
-    for (const tab of ["Changes", "Artifacts", "Terminal"]) {
-      await page.getByRole("button", { name: tab, exact: true }).click();
+    for (const tab of ["Changes", "Canvases", "Terminal"]) {
+      await page.getByRole("tab", { name: tab, exact: true }).click();
       expect(await mode(page)).toBe("worker");
     }
     await page.evaluate(() => {
@@ -304,13 +307,15 @@ test("zoom keeps tabs, restores keyboard focus, and ends on Worker navigation", 
     await chatButton(page).click();
     expect(await mode(page)).toBe("chat");
     const chatSize = await chatButton(page).boundingBox();
-    expect(chatSize!.width).toBe(32);
+    // Header controls are 28px in the redesign's band (icon-xs).
+    expect(chatSize!.width).toBe(28);
     await page.keyboard.press("Escape");
     expect(await mode(page)).toBe("split");
     expect(new URL(page.url()).pathname).toBe(WORKER_PATH);
     await workerButton(page).click();
     // Navigate in the existing router so this tests reset, not page reload.
-    await page.getByRole("link", { name: "Zoom project", exact: true }).click();
+    // (The project is not a link since the redesign; Home in the sidebar is.)
+    await page.locator('nav a[href="/projects"]').first().click();
     await page.waitForURL("**/projects");
     // React Router updates history before its transition commits the page.
     await workerButton(page).waitFor({ state: "detached" });

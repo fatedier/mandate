@@ -91,8 +91,8 @@ export function ProviderModelsEditor({
                 setSelectedFormId((prev) => (prev === model.id ? null : model.id))
               }
               className={cn(
-                "flex cursor-pointer items-center gap-1.5 rounded-md border border-border-soft bg-accent px-2 py-0.5 font-mono text-2xs",
-                selectedFormId === model.id && "border-primary/50"
+                "flex cursor-pointer items-center gap-1.5 rounded-md border border-border-soft bg-sel px-2 py-0.5 font-mono text-2xs",
+                selectedFormId === model.id && "border-status-review/50"
               )}
             >
               {model.modelId || "unnamed"}
@@ -171,7 +171,7 @@ export function ProviderModelsEditor({
                   <label
                     key={item.id}
                     data-catalog-item={item.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-muted/60"
+                    className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-sel"
                   >
                     <input
                       type="checkbox"

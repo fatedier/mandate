@@ -147,7 +147,7 @@ export function CallDetailPanel({ callId, onClose }: CallDetailPanelProps) {
                   // narrow columns on a wide screen and two roomy ones on a
                   // small screen — the column count tracking the window behind
                   // it rather than its own width.
-                  className="@container grid gap-x-6 gap-y-3 rounded-lg border border-border-soft bg-card/50 px-4 py-3 @min-[26rem]:grid-cols-2 @min-[40rem]:grid-cols-3"
+                  className="@container grid gap-x-6 gap-y-3 rounded-lg border border-border-soft bg-panel px-4 py-3 @min-[26rem]:grid-cols-2 @min-[40rem]:grid-cols-3"
                 >
                   {fields.map((field) => (
                     <Field key={field.label} label={field.label} value={field.value} />
@@ -249,7 +249,7 @@ function JsonSection({ label, value }: { label: string; value: unknown }) {
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-lg border bg-card/50",
+        "overflow-hidden rounded-lg border bg-panel",
         isError ? "border-destructive/40" : "border-border-soft"
       )}
     >
@@ -368,7 +368,7 @@ function highlightJson(text: string): ReactNode {
       );
     } else if (bool) {
       out.push(
-        <span key={key++} className="text-status-review">
+        <span key={key++} className="text-amber">
           {bool}
         </span>
       );

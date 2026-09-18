@@ -1,34 +1,37 @@
+import { Section, SectionRow } from "@/components/Section";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Placeholder for the log, shaped like the log: a filter row and a run of
- *  one-line rows. It used to draw four stat cards above the list, which is now
- *  a different tab — a skeleton that promises a layout the page will not
- *  produce is worse than no skeleton at all. */
+/** One header line over six 40px rows: the shape a list (the log, the
+ *  breakdown table) will have once it loads, so nothing jumps when it does. */
+export function ActivityListSkeleton() {
+  return (
+    <Section title={<Skeleton className="h-3 w-24 rounded-xs bg-sel" />}>
+      {Array.from({ length: 6 }, (_, i) => (
+        <SectionRow key={i} minH="40">
+          <Skeleton className="h-3.5 w-[85%] rounded-xs bg-sel" />
+        </SectionRow>
+      ))}
+    </Section>
+  );
+}
+
+/** Header lines + panels in --sel: the shape the Overview will have. */
 export function ActivitySkeleton() {
   return (
-    <div className="overflow-hidden rounded-lg border border-border-soft bg-card">
-      <div className="flex items-center gap-2 border-b border-border-soft px-3 py-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="ml-auto h-3 w-16" />
-      </div>
-      <div className="grid gap-2 border-b border-border-soft px-3 py-2 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_unused, index) => (
-          <Skeleton key={index} className="h-8" />
-        ))}
-      </div>
-      <ul>
-        {Array.from({ length: 8 }).map((_unused, index) => (
-          <li
-            key={index}
-            className="flex items-center gap-2 border-b border-border-soft px-3 py-2 last:border-b-0"
-          >
-            <Skeleton className="h-3 w-12" />
-            <Skeleton className="h-3 flex-1 max-w-[10rem]" />
-            <Skeleton className="ml-auto h-3 w-10" />
-            <Skeleton className="h-3 w-10" />
-          </li>
-        ))}
-      </ul>
+    <div className="flex flex-col gap-6">
+      <Section title={<Skeleton className="h-3 w-16 rounded-xs bg-sel" />}>
+        <div className="flex flex-col gap-3 p-3.5">
+          <Skeleton className="h-6 w-64 rounded-xs bg-sel" />
+          <Skeleton className="h-40 w-full rounded-xs bg-sel" />
+        </div>
+      </Section>
+      <Section title={<Skeleton className="h-3 w-32 rounded-xs bg-sel" />}>
+        <div className="flex flex-col gap-3 p-3.5">
+          <Skeleton className="h-3.5 w-[90%] rounded-xs bg-sel" />
+          <Skeleton className="h-3.5 w-[70%] rounded-xs bg-sel" />
+          <Skeleton className="h-3.5 w-[55%] rounded-xs bg-sel" />
+        </div>
+      </Section>
     </div>
   );
 }

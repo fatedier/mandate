@@ -11,6 +11,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     gitRemote: null,
     tmuxSessionName: "md-mandate",
     ownership: "app",
+    sortOrder: 0,
     createdAt: "x", updatedAt: "x", archivedAt: null,
     tmuxAlive: true,
     features: [],
@@ -18,9 +19,9 @@ function makeProject(overrides: Partial<Project> = {}): Project {
   };
 }
 
-test("buildBreadcrumb: /projects → [Projects (current)]", () => {
+test("buildBreadcrumb: /projects → [Home (current)] — the band matches the nav item", () => {
   expect(buildBreadcrumb({ pathname: "/projects", bySlug: {} }))
-    .toEqual([{ label: "Projects", current: true }]);
+    .toEqual([{ label: "Home", current: true }]);
 });
 
 test("buildBreadcrumb: /sessions → [Sessions (current)]", () => {
@@ -57,8 +58,8 @@ test("buildBreadcrumb: feature route resolves project + feature names", () => {
     name: "Mandate",
     features: [{
       id: "f1", projectId: "proj-id", name: "Voice agent",
-      mode: "shared-cwd", branch: null, worktreePath: null,
-      tmuxWindowName: "voice-agent", ownership: "app",
+      mode: "shared-cwd", branch: null, baseRef: null, worktreePath: null,
+      tmuxWindowName: "voice-agent", ownership: "app", pinnedAt: null,
       createdAt: "x", updatedAt: "x", archivedAt: null, tmuxAlive: true
     }]
   });
@@ -77,8 +78,8 @@ test("buildBreadcrumb: feature pane route adds pane segment with linkable featur
     name: "Mandate",
     features: [{
       id: "f1", projectId: "proj-id", name: "Voice agent",
-      mode: "shared-cwd", branch: null, worktreePath: null,
-      tmuxWindowName: "voice-agent", ownership: "app",
+      mode: "shared-cwd", branch: null, baseRef: null, worktreePath: null,
+      tmuxWindowName: "voice-agent", ownership: "app", pinnedAt: null,
       createdAt: "x", updatedAt: "x", archivedAt: null, tmuxAlive: true
     }]
   });
@@ -98,8 +99,8 @@ test("buildBreadcrumb: tmux pane id (%37) is decoded once for display", () => {
     name: "Mandate",
     features: [{
       id: "f1", projectId: "proj-id", name: "init",
-      mode: "shared-cwd", branch: null, worktreePath: null,
-      tmuxWindowName: "init", ownership: "app",
+      mode: "shared-cwd", branch: null, baseRef: null, worktreePath: null,
+      tmuxWindowName: "init", ownership: "app", pinnedAt: null,
       createdAt: "x", updatedAt: "x", archivedAt: null, tmuxAlive: true
     }]
   });

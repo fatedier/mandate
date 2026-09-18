@@ -9,6 +9,7 @@ import {
 } from "../../../shared/api/memory.js";
 import type { MemoryRow } from "./local-provider-helpers.js";
 import { rowToEntry } from "./local-provider-helpers.js";
+import type { SqlValue } from "../../platform/db/sql-value.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -23,7 +24,7 @@ const MAX_LIMIT = 200;
  */
 function usageClause(
   usage: MemoryEntriesQuery["usage"]
-): { sql: string; params: unknown[] } | null {
+): { sql: string; params: SqlValue[] } | null {
   switch (usage) {
     case "used":
       return { sql: "use_count > 0", params: [] };
@@ -54,7 +55,7 @@ export function listMemoryEntries(
   query: MemoryEntriesQuery
 ): MemoryEntriesResponse {
   const where: string[] = [];
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
 
   const status = query.status ?? "available";
   if (status === "available") {

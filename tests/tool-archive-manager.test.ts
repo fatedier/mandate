@@ -3,6 +3,13 @@ import { buildArchiveProjectTool } from "../src/server/modules/projects/tools/ar
 import { buildArchiveFeatureTool } from "../src/server/modules/features/tools/archive-feature.js";
 import { buildRestoreFeatureTool } from "../src/server/modules/features/tools/restore-feature.js";
 import { freshProjectEnv, freshStoresEnv, seedFeature, seedProject } from "./helpers/fixtures.js";
+import { buildPaneRuntimes, type PaneRuntimeRegistry } from "../src/server/runtime/pane-runtime-registry.js";
+import type { ToolContext } from "../src/server/modules/agent/tool-registry.js";
+
+const ctx: ToolContext = {
+  threadId: "t1", wakeId: "w1",
+  scope: { kind: "manager", managerDir: "/tmp", projectWorkingDirs: [] }
+};
 
 test("archive_project (manager tool): cascade-archives features", async () => {
   const env = freshProjectEnv("md-ap-");
@@ -23,7 +30,7 @@ test("archive_project (manager tool): cascade-archives features", async () => {
 
     const r = await tool.handler(
       { projectId },
-      { threadId: "t1", wakeId: "w1" }
+      ctx
     );
     expect(r.ok).toBeTruthy();
     expect(events[0]?.type).toBe("projectArchived");
@@ -52,6 +59,7 @@ test("archive_feature (manager tool): archives feature row + broadcasts", async 
       projectsStore: env.projects,
       agentStore: env.agentStore,
       tmuxClient: env.tmux.client,
+      paneRuntimes: buildPaneRuntimes({ tmuxClient: env.tmux.client, projectsStore: env.projects, featuresStore: env.features }),
       broadcast: (e) => events.push(e),
       beforeFeatureArchive: (id) => {
         archiveHooks.push(id);
@@ -62,7 +70,7 @@ test("archive_feature (manager tool): archives feature row + broadcasts", async 
 
     const r = await tool.handler(
       { featureId },
-      { threadId: "t1", wakeId: "w1" }
+      ctx
     );
     expect(r.ok).toBeTruthy();
     expect(env.features.getById(featureId)?.archivedAt).toBeTruthy();
@@ -113,13 +121,14 @@ test("archive_feature: soft-archives even when external cleanup fails", async ()
           }
         }
       },
+      paneRuntimes: buildPaneRuntimes({ tmuxClient: env.tmux.client, projectsStore: env.projects, featuresStore: env.features }),
       broadcast: (e) => events.push(e),
       beforeFeatureArchive: () => { hookCalled = true; }
     });
 
     const r = await tool.handler(
       { featureId },
-      { threadId: "t1", wakeId: "w1" }
+      ctx
     );
     expect(r.ok).toBeTruthy();
     expect(r.cleanupFailures?.map((failure) => failure.kind)).toEqual(["worktree", "branch"]);
@@ -156,7 +165,7 @@ test("restore_feature: restores archived feature and unarchives main thread", as
 
     const r = await tool.handler(
       { featureId },
-      { threadId: "t1", wakeId: "w1" }
+      ctx
     );
     expect(r.ok).toBeTruthy();
     expect(env.features.getById(featureId)?.archivedAt).toBeNull();
@@ -205,7 +214,7 @@ test("restore_feature: reports branch conflicts before recreating worktree", asy
 
     const r = await tool.handler(
       { featureId },
-      { threadId: "t1", wakeId: "w1" }
+      ctx
     );
     expect(r.ok).toBeUndefined();
     expect(r.error).toBe("branch 'feature/conflict' already exists");
@@ -222,11 +231,12 @@ test("archive_feature: returns error for missing feature", async () => {
       projectsStore: env.projects,
       agentStore: env.agentStore,
       tmuxClient: null as any,
+      paneRuntimes: null as unknown as PaneRuntimeRegistry,
       broadcast: () => {}
     });
     const r = await tool.handler(
       { featureId: "nope" },
-      { threadId: "t1", wakeId: "w1" }
+      ctx
     );
     expect(String(r.error)).toMatch(/not found/i);
   } finally { env.cleanup(); }

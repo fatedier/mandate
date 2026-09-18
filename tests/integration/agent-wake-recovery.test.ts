@@ -70,7 +70,7 @@ test("stopping a wake waiting for startup is durable and never reaches the model
   const model = createMockLLM([{ text: "unexpected" }]);
   const scheduler = new WakeScheduler({
     agentStore: store, lock: new WakeLock(), ready: ready.promise, llmModel: model, maxStepsPerWake: 1,
-    buildSystemPrompt: () => "test", buildToolScope: () => ({ kind: "manager", projects: [] }),
+    buildSystemPrompt: () => "test", buildToolScope: () => ({ kind: "manager", managerDir: "/tmp", projectWorkingDirs: [] }),
     toolDispatcherForThread: () => ({ registry: { tools: {} }, dispatch: async () => ({ result: "unexpected" }) }),
     sse: { emit: () => {} }, wakeFinishedHook: () => { finished.resolve(); }
   });
@@ -132,7 +132,7 @@ test("archiving while startup waits cannot repeatedly re-wake the queued recover
   let followup: string | null | undefined;
   const scheduler = new WakeScheduler({
     agentStore: store, lock: new WakeLock(), ready: ready.promise, llmModel: model, maxStepsPerWake: 1,
-    buildSystemPrompt: () => "test", buildToolScope: () => ({ kind: "manager", projects: [] }),
+    buildSystemPrompt: () => "test", buildToolScope: () => ({ kind: "manager", managerDir: "/tmp", projectWorkingDirs: [] }),
     toolDispatcherForThread: () => ({ registry: { tools: {} }, dispatch: async () => ({ result: "unexpected" }) }),
     sse: { emit: () => {} },
     afterWakeReleasedHook: (threadId) => {

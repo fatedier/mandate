@@ -4,6 +4,7 @@ import {
   buildCancelWatchTool,
   buildListMyWatchesTool
 } from "../src/server/modules/agent/tools/watch-tools.js";
+import type { AgentSseEmitter } from "../src/server/modules/sse/sse-events.js";
 import { freshStoresEnv } from "./helpers/fixtures.js";
 
 // Manager fixture with a fixed, unmoving pane state — these tests exercise
@@ -13,7 +14,7 @@ function makeManager(env: ReturnType<typeof freshStoresEnv>) {
   return new WindowWatchManager({
     db: env.store.db,
     agentStore: env.agentStore,
-    sse: { emit: () => {} },
+    sse: { emit: () => {} } as unknown as AgentSseEmitter,
     onWake: () => "wake-1",
     isThreadBusy: () => false,
     getPaneState: () => ({ status: "ok", changedAt: null }),
@@ -102,7 +103,7 @@ test("list_my_watches returns this thread's watches with their parameters", asyn
     });
     const listTool = buildListMyWatchesTool(manager);
 
-    const result = await listTool.handler({}, { threadId: threadA.id } as never) as { watches: Array<Record<string, unknown>> };
+    const result = await listTool.handler({}, { threadId: threadA.id } as never);
     expect(result.watches).toHaveLength(1);
     const watch = result.watches[0]!;
     // Pin the full field set the brief specifies (watchId, paneId, windowKey,
@@ -118,8 +119,8 @@ test("list_my_watches returns this thread's watches with their parameters", asyn
       stableMs: 1000,
       note: "waiting on build"
     });
-    expect(Date.parse(watch.createdAt as string)).not.toBeNaN();
-    expect(Date.parse(watch.timeoutAt as string)).not.toBeNaN();
+    expect(Date.parse(watch.createdAt)).not.toBeNaN();
+    expect(Date.parse(watch.timeoutAt)).not.toBeNaN();
     manager.dispose();
   } finally {
     env.cleanup();

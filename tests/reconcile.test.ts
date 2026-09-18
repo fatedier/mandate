@@ -27,7 +27,7 @@ const baseProject: ProjectRow = {
 const baseFeature: FeatureRow = {
   id: "f1", projectId: "p1", name: "F",
   mode: "shared-cwd", branch: null, baseRef: null, worktreePath: null,
-  tmuxWindowName: "f", ownership: "app",
+  tmuxWindowName: "f", ownership: "app", pinnedAt: null,
   createdAt: "2026-05-01", updatedAt: "2026-05-01", archivedAt: null
 };
 

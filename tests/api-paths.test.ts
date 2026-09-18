@@ -80,7 +80,7 @@ test("api base: desktop injection prefixes HTTP and WebSocket paths", () => {
   // bun:test runs without a DOM, so api-base's `typeof window === "undefined"`
   // guard short-circuits. Stub globalThis.window for this case so we can
   // exercise the desktop-config branch.
-  const g = globalThis as typeof globalThis & {
+  const g = globalThis as unknown as {
     window?: { __MANDATE_DESKTOP__?: { apiBaseUrl?: string } };
   };
   const previous = g.window;

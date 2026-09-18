@@ -55,6 +55,7 @@ export function PaneDetail({ pane, projectSlug, featureSlug }: PaneDetailProps) 
   return (
     <PaneCardShell
       title={paneTitle(pane)}
+      titleMono={!pane.metadata?.name?.trim()}
       statusIndicator={<StatusDot status={paneStatus(pane)} className="shrink-0" />}
       metadata={
         <>

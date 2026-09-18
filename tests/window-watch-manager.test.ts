@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test";
 import { WindowWatchManager } from "../src/server/modules/agent/window-watch-manager.js";
+import type { AgentSseEmitter } from "../src/server/modules/sse/sse-events.js";
 import { buildWatchWindowTool } from "../src/server/modules/agent/tools/watch-window.js";
 import { freshStoresEnv, seedFeature, seedProject } from "./helpers/fixtures.js";
+
+/** The manager only ever calls `emit`; stand in for the emitter class with just that. */
+function fakeSse(emit: AgentSseEmitter["emit"]): AgentSseEmitter {
+  return { emit } as unknown as AgentSseEmitter;
+}
 
 // Helper: build a manager where getPaneState returns a fixed timestamp
 function makeManager(
@@ -18,7 +24,7 @@ function makeManager(
   const manager = new WindowWatchManager({
     db: env.store.db,
     agentStore: env.agentStore,
-    sse: { emit: (event, data) => emitted.push({ event, data }) },
+    sse: fakeSse((event, data) => { emitted.push({ event, data }); }),
     onWake: (threadId, reason, messageId) => {
       wakes.push({ threadId, reason, messageId });
       if (onWake) return onWake(threadId, reason, messageId);
@@ -358,9 +364,7 @@ test("watch_window de-duplicates same owner/window/pane", () => {
 
     expect(first.status).toBe("registered");
     expect(second.status).toBe("already_registered");
-    if (first.status !== "already_satisfied" && second.status !== "already_satisfied") {
-      expect(second.watchId).toBe(first.watchId);
-    }
+    expect(second.watchId).toBe(first.watchId);
     expect(manager.activeWatchCount()).toBe(1);
     manager.dispose();
   } finally {
@@ -773,7 +777,7 @@ test("watch_window keeps a pending trigger when the replacement registration fai
     const manager = new WindowWatchManager({
       db: env.store.db,
       agentStore: env.agentStore,
-      sse: { emit: () => {} },
+      sse: fakeSse(() => {}),
       onWake: () => "wake-1",
       isThreadBusy: () => true,
       getPaneState: () => exists
@@ -822,7 +826,7 @@ test("watch_window wakes with target_missing when a registered target disappears
     const manager = new WindowWatchManager({
       db: env.store.db,
       agentStore: env.agentStore,
-      sse: { emit: (event, data) => emitted.push({ event, data }) },
+      sse: fakeSse((event, data) => { emitted.push({ event, data }); }),
       onWake: (threadId, reason, messageId) => {
         wakes.push({ threadId, reason, messageId });
         return "wake-1";

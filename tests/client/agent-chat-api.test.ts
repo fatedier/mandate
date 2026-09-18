@@ -16,7 +16,7 @@ import {
 
 async function withResponse(response: () => Response, run: () => Promise<void>) {
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = (async () => response()) as typeof fetch;
+  globalThis.fetch = (async () => response()) as unknown as typeof fetch;
   try { await run(); } finally { globalThis.fetch = previousFetch; }
 }
 
@@ -80,7 +80,7 @@ test("summary transfer actions still validate the required transfer", async () =
   });
   const payload = { transfer: { id: "transfer", status: "pending" }, wakeId: "wake" };
   await withResponse(() => Response.json(payload), async () => {
-    expect(await transferSideSummary("side", "Summary", "request")).toEqual(payload);
-    expect(await retargetSideSummary("transfer", "main")).toEqual(payload);
+    expect(await transferSideSummary("side", "Summary", "request") as unknown).toEqual(payload);
+    expect(await retargetSideSummary("transfer", "main") as unknown).toEqual(payload);
   });
 });

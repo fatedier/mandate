@@ -13,6 +13,10 @@ const projectBase = {
   isGit: false,
   gitRemote: null,
   ownership: "app" as const,
+  sortOrder: 0,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  archivedAt: null,
   features: [] as never[],
   tmuxAlive: true as const,
   tmuxStatus: "alive" as const
@@ -40,7 +44,7 @@ test("appStateMutations renders string error as banner verbatim", () => {
 });
 
 test("appStateMutations renders object error to its message", () => {
-  const result = appStateMutations({ error: { message: "oops" } as never } as AppStateResponse);
+  const result = appStateMutations({ error: { message: "oops" } } as AppStateResponse);
   expect(result.banner).toBe("oops");
 });
 

@@ -2,6 +2,36 @@ import type { ActivityBucketDto, ActivitySummaryResponse } from "@shared/api-con
 import { formatPercentileMs, latencyBucketIndex } from "../activity-model";
 
 /**
+ * The percentile strip for the section's header line: p50 · p95 · p99, and the
+ * time to first token when the window measured one.
+ *
+ * TTFT is kept last and named apart rather than lined up as a fourth
+ * percentile: it answers a different question — how long the provider took to
+ * start — and it is measured over a different set of calls, since only those
+ * recorded after the column existed have one. A window where nothing timed a
+ * first token shows no TTFT figure at all — not a dash, not a zero — because
+ * an empty reading dressed as a measurement is worse than none.
+ */
+export function LatencyStats({
+  p50Ms, p95Ms, p99Ms, ttft
+}: {
+  p50Ms: number;
+  p95Ms: number;
+  p99Ms: number;
+  ttft: ActivitySummaryResponse["ttft"];
+}) {
+  const fmt = formatPercentileMs;
+  return (
+    // Hidden on a phone: the strip is wider than the line has room for, and
+    // the panel below pins the same percentiles onto their buckets.
+    <span className="num min-w-0 truncate font-mono text-2xs text-faint @max-[34rem]:hidden">
+      p50 {fmt(p50Ms)} · p95 {fmt(p95Ms)} · p99 {fmt(p99Ms)}
+      {ttft.calls > 0 ? ` · TTFT p50 ${fmt(ttft.p50Ms)}` : ""}
+    </span>
+  );
+}
+
+/**
  * Where the calls sit on the clock: five buckets as horizontal bars, with
  * p50/p95/p99 pinned onto the bucket each falls in.
  *
@@ -9,13 +39,12 @@ import { formatPercentileMs, latencyBucketIndex } from "../activity-model";
  * and a linear vertical bar makes the small buckets invisible.
  */
 export function LatencyPanel({
-  buckets, p50Ms, p95Ms, p99Ms, ttft
+  buckets, p50Ms, p95Ms, p99Ms
 }: {
   buckets: ActivityBucketDto[];
   p50Ms: number;
   p95Ms: number;
   p99Ms: number;
-  ttft: ActivitySummaryResponse["ttft"];
 }) {
   const total = buckets.reduce((sum, b) => sum + b.calls, 0) || 1;
   const percentiles = [["p50", p50Ms], ["p95", p95Ms], ["p99", p99Ms]] as const;
@@ -35,51 +64,34 @@ export function LatencyPanel({
         <div
           key={bucket.bucket}
           data-latency-bucket={bucket.bucket}
-          className="grid grid-cols-[4.2rem_minmax(0,1fr)_4rem] items-center gap-3 py-1"
+          className="flex min-h-10 items-center gap-3 border-t border-border-soft px-3.5 first:border-t-0"
         >
-          <span className="num text-2xs text-muted-foreground">{bucket.bucket}</span>
-          {/* The pin sits outside the track, not inside it: an 8px rail with
-              `overflow-hidden` clips a 12px badge down to a sliver. */}
-          <span className="relative block">
-            <span className="block h-2 overflow-hidden rounded-full bg-muted">
-              <span className="block h-full rounded-full bg-primary/55"
-                    style={{ width: `${Math.max((bucket.calls / total) * 100, bucket.calls ? 1.5 : 0)}%` }} />
-            </span>
-            {pins.has(index) && (
-              <span className="absolute right-1 top-1/2 -translate-y-1/2 rounded-xs border border-border-soft bg-card px-1 text-2xs font-semibold text-primary">
-                {pins.get(index)?.join(" ")}
-              </span>
-            )}
+          <span className="num w-[52px] shrink-0 font-mono text-2xs text-muted-foreground">{bucket.bucket}</span>
+          <span data-slot="latency-track" className="relative block h-1.5 flex-1 overflow-hidden rounded-full bg-sel">
+            <span
+              className="block h-full rounded-full bg-faint"
+              style={{ width: `${Math.max((bucket.calls / total) * 100, bucket.calls ? 1.5 : 0)}%` }}
+            />
           </span>
-          <span className="num text-right text-2xs text-muted-foreground">{bucket.calls.toLocaleString("en-US")}</span>
+          {/* The markers sit after the track, not on it: a 6px rail with
+              `overflow-hidden` clips a 22px pill down to a sliver. And in a
+              fixed slot on every row, pinned or not: a pill in the flex line
+              would take its width from the track, and a bar is a share of its
+              track — two rows with different tracks stop being comparable.
+              8rem holds all three pills: on a fast window p50, p95 and p99
+              can all land in the <1s bucket, and nothing here stops them.
+              On a phone the slot shrinks to its pills instead — a fixed 8rem
+              beside the label and the count left the track a few pixels. */}
+          <span data-slot="latency-markers" className="flex w-32 shrink-0 items-center gap-1 @max-[34rem]:w-auto">
+            {pins.get(index)?.map((label) => (
+              <span key={label} className="pill pill-neutral">{label}</span>
+            ))}
+          </span>
+          <span className="num w-14 shrink-0 text-right text-2xs text-muted-foreground">
+            {bucket.calls.toLocaleString("en-US")}
+          </span>
         </div>
       ))}
-      <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-border-soft pt-3">
-        {percentiles.map(([label, ms]) => (
-          <div key={label} className="text-2xs text-chrome">
-            {label}
-            <b className="num block text-base font-semibold text-foreground">
-              {formatPercentileMs(ms)}
-            </b>
-          </div>
-        ))}
-        {/* Time to first token, kept apart from the three above rather than
-            lined up with them: it answers a different question — how long the
-            provider took to start — and it is measured over a different set of
-            calls, since only those recorded after the column existed have one.
-            Side by side they would read as four views of one population. */}
-        {ttft.calls > 0 && (
-          <div className="border-l border-border-soft pl-6 text-2xs text-chrome">
-            TTFT p50
-            <b className="num block text-base font-semibold text-foreground">
-              {formatPercentileMs(ttft.p50Ms)}
-            </b>
-            <span className="num">
-              {ttft.calls.toLocaleString("en-US")} calls · p95 {formatPercentileMs(ttft.p95Ms)}
-            </span>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

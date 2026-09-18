@@ -337,11 +337,12 @@ test("TmuxRuntime fit lease: newest pane owner wins and stale viewers cannot res
     const paneA = (await rt.listPanes(featureId))[0]!;
     const paneB = await rt.spawnPane({ featureId, cwd: env.dir });
     const original = tmuxWindowSize(env, paneA.id);
+    const geometry = { cols: original.width, rows: original.height };
 
     const wsA: any = { readyState: 1, send: () => {}, close: () => {} };
     const wsB: any = { readyState: 1, send: () => {}, close: () => {} };
-    const handleA = await rt.attachViewer(paneA.id, wsA, original);
-    const handleB = await rt.attachViewer(paneB.id, wsB, original);
+    const handleA = await rt.attachViewer(paneA.id, wsA, geometry);
+    const handleB = await rt.attachViewer(paneB.id, wsB, geometry);
 
     handleA.handleMessage(JSON.stringify({ type: "fit", enabled: true, cols: 90, rows: 30 }));
     expect(tmuxWindowSize(env, paneA.id)).toEqual({ width: 90, height: 30 });

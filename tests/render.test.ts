@@ -121,10 +121,10 @@ test("formatRelativeTime: ISO timestamp", () => {
 test("parseTmuxLayout parses nested tmux split coordinates", () => {
   const layout = "424d,173x40,0,0{86x40,0,0[86x19,0,0,6,86x20,0,20,7],86x40,87,0[86x19,87,0{49x19,87,0,8,36x19,137,0,9},86x20,87,20,10]}";
   const parsed = parseTmuxLayout(layout);
-  expect(parsed.width).toBe(173);
-  expect(parsed.height).toBe(40);
-  expect(parsed.leaves.map((leaf) => leaf.layoutPaneId)).toEqual(["6", "7", "8", "9", "10"]);
-  expect(parsed.leaves[2]).toEqual({ layoutPaneId: "8", x: 87, y: 0, width: 49, height: 19 });
+  expect(parsed!.width).toBe(173);
+  expect(parsed!.height).toBe(40);
+  expect(parsed!.leaves.map((leaf) => leaf.layoutPaneId)).toEqual(["6", "7", "8", "9", "10"]);
+  expect(parsed!.leaves[2]).toEqual({ layoutPaneId: "8", x: 87, y: 0, width: 49, height: 19 });
 });
 
 test("parseTmuxLayout parses a single pane layout", () => {

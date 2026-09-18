@@ -26,6 +26,7 @@ export type SettingsSearchEntry = {
 export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   // General
   { section: "general", group: "Appearance", label: "Theme", anchor: "theme", keywords: "dark light color scheme appearance" },
+  { section: "general", group: "Appearance", label: "Interface zoom", anchor: "interface-zoom", keywords: "scale size bigger smaller text display percent", desktopOnly: true },
   { section: "general", group: "Agents", label: "Delegation preferences", anchor: "agent-preferences", keywords: "planning implementation review who handles" },
   { section: "general", group: "Agents", label: "Context compression threshold", anchor: "context-compression", keywords: "tokens budget summarize history manager workers" },
   { section: "general", group: "Agents", label: "Agent logging", anchor: "agent-logging", keywords: "debug prompts requests metadata full" },

@@ -180,7 +180,7 @@ test("GET /api/projects/:id/git/branches lists branches of git project", async (
     const projectId = seedProject(env.projects, {
       name: "p", workingDir: repo.dir, isGit: true, tmuxSessionName: "md-p"
     });
-    const app = buildGitTestApp({ projects: env.projects });
+    const app = buildGitTestApp({ projects: env.projects, features: env.features });
     const r = await getJson(app, `/api/projects/${projectId}/git/branches`);
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body.branches)).toBeTruthy();
@@ -201,7 +201,7 @@ test("GET /api/projects/:id/git/branches returns 400 when project is not git", a
     const projectId = seedProject(env.projects, {
       name: "p2", workingDir: wd, tmuxSessionName: "md-p2"
     });
-    const app = buildGitTestApp({ projects: env.projects });
+    const app = buildGitTestApp({ projects: env.projects, features: env.features });
     const r = await getJson(app, `/api/projects/${projectId}/git/branches`);
     expect(r.status).toBe(400);
     expect(r.body.error).toMatch(/not a git project/i);

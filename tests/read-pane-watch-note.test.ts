@@ -33,6 +33,7 @@ function harness(opts: { watchOnPane: boolean; paneText?: string }) {
     stableMs: 30_000,
     note: "",
     createdAtMs: Date.now() - 5_000,
+    timeoutMs: 1_000_000,
     timeoutAtMs: Date.now() + 1_000_000,
     // Never actually scheduled — this fixture is never passed to a real
     // WindowWatchManager, so a live timer here would just be a leak.

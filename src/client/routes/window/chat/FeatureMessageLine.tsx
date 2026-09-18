@@ -51,7 +51,7 @@ export function FeatureMessageLine({ message }: { message: AgentMessage }) {
   const header = (
     <div className="flex items-center gap-2 text-2xs text-muted-foreground">
       <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
-      <span className="font-mono uppercase tracking-wider">feature</span>
+      <span className="font-mono uppercase">feature</span>
       <span className="min-w-0 truncate">{featureLabel}</span>
       {time ? (
         <time
@@ -81,10 +81,10 @@ export function FeatureMessageLine({ message }: { message: AgentMessage }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 rounded-xs py-0.5 text-left text-xs transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex w-full items-center gap-2 rounded-xs py-0.5 text-left text-xs transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <span className="min-w-0 flex-1 truncate text-foreground/90">{summary}</span>
-          <span className="shrink-0 text-2xs font-medium text-primary">View reply</span>
+          <span className="shrink-0 text-2xs font-medium text-muted-foreground">View reply</span>
         </button>
       </div>
 

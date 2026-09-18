@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 import { useProjectsStore } from "@/store/projects";
 import { useWorkItemsStore } from "@/store/work-items";
 import { selectAttentionFeatures } from "@/lib/attention";
@@ -11,7 +11,7 @@ type DotKey = "input" | "review" | "idle";
 const DOT_BG: Record<DotKey, string> = {
   input: "bg-status-input",
   review: "bg-status-review",
-  idle: "bg-faint"
+  idle: "bg-faint/60"
 };
 
 export function FeaturesNavSection({
@@ -111,7 +111,7 @@ export function FeaturesNavSection({
           <div key={project.id} className="flex flex-col gap-0.5">
             <div
               data-project-group={project.name}
-              className="flex items-center gap-2 px-3 pt-3 pb-1 text-xs text-chrome select-none"
+              className="flex h-6 items-center gap-2 px-2 pt-2 text-2xs text-faint select-none"
             >
               <span className="truncate">{project.name}</span>
             </div>
@@ -134,18 +134,14 @@ export function FeaturesNavSection({
 
 function SectionHead({ label, count }: { label: string; count: number }) {
   return (
-    // Not `label-micro`. That is 12px UPPERCASE at 0.08em tracking in a dim
-    // tone — a data-table column-header vocabulary, and it is most of why this
-    // column reads as a different product from the nav sidebars it sits beside.
-    // Sentence case at body size, bold and bright: the rank comes from weight,
-    // not from dimming. Only the count stays quiet.
+    // Eyebrow in --chrome with the count in --faint: the band name is furniture, the rows are the content.
     <div
       aria-hidden
       data-band-head={label}
-      className="flex items-center px-3 pt-5 pb-1.5 text-sm font-semibold text-foreground select-none"
+      className="flex h-7 items-center px-2 pt-3 select-none"
     >
-      <span>{label}</span>
-      <span className="ml-auto num text-2xs font-normal text-chrome">{count}</span>
+      <span className="label-micro text-chrome">{label}</span>
+      <span className="ml-auto num text-2xs text-faint">{count}</span>
     </div>
   );
 }
@@ -174,19 +170,12 @@ interface FeatureLinkProps {
  *  `pathname === url || pathname.startsWith(url + "/")`. Adding `end` would
  *  drop the row's highlight the moment you open one of its panes. */
 function FeatureLink({ href, name, project, urgency, wants, pinned, onNavigate }: FeatureLinkProps) {
-  return (
-    <NavLink
-      to={href}
-      data-feature-name={name}
-      title={project ? `${name} — ${project}` : name}
-      onClick={() => onNavigate?.()}
-      className={cn(
-        "flex items-center gap-2.5 h-8 rounded-md px-3 text-sm min-w-0 transition-colors",
-        "text-foreground/90 hover:text-foreground hover:bg-foreground/5",
-        "[&.active]:text-foreground [&.active]:bg-foreground/[0.06]",
-        wants && "border border-border bg-foreground/[0.03]"
-      )}
-    >
+  const rowClass = cn(
+    "flex items-center gap-2.5 h-7 rounded-sm px-2 text-xs min-w-0 transition-colors",
+    "text-muted-foreground hover:text-foreground hover:bg-sel"
+  );
+  const body = (
+    <>
       {/* Named, not aria-hidden: the dot is the only thing on the row carrying
           urgency, so hiding it makes urgency colour-only — unreadable to a
           screen reader and to anyone who cannot separate the two hues. The
@@ -195,13 +184,39 @@ function FeatureLink({ href, name, project, urgency, wants, pinned, onNavigate }
       <span
         role="img"
         aria-label={`urgency: ${urgency}`}
-        className={cn("h-2 w-2 rounded-full shrink-0", DOT_BG[urgency])}
+        className={cn("size-1.5 rounded-full shrink-0", DOT_BG[urgency])}
       />
       <span className="truncate min-w-0">
-        {pinned && <span className="text-status-review mr-1">★</span>}
+        {pinned && <span className="text-foreground mr-1">★</span>}
         {name}
       </span>
-      {project && <span className="ml-auto pl-2 shrink-0 text-2xs text-chrome">{project}</span>}
+      {project && <span className="ml-auto pl-2 shrink-0 text-2xs text-faint">{project}</span>}
+    </>
+  );
+  // Band 1 (wants you): framed, never highlighted as current — the same feature
+  // is also in band 2, and two highlights for one route read as two selections.
+  if (wants) {
+    return (
+      <Link
+        to={href}
+        data-feature-name={name}
+        title={project ? `${name} — ${project}` : name}
+        onClick={() => onNavigate?.()}
+        className={cn(rowClass, "border border-border-soft")}
+      >
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <NavLink
+      to={href}
+      data-feature-name={name}
+      title={name}
+      onClick={() => onNavigate?.()}
+      className={cn(rowClass, "[&.active]:text-foreground [&.active]:bg-sel")}
+    >
+      {body}
     </NavLink>
   );
 }

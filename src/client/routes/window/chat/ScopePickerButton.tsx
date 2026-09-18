@@ -11,6 +11,7 @@ import { useAgentChatStore, scopeKey, type AgentChatScope } from "@/store/agent-
 import type { WorkItemDto } from "@shared/api/work-items";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
+import { UnreadBadge } from "@/components/UnreadBadge";
 
 const DOT: Record<"input" | "review" | "idle", string> = {
   input: "bg-status-input",
@@ -91,7 +92,7 @@ export function ScopePickerButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="inline-flex h-7 min-w-0 items-center gap-1 rounded-md bg-accent px-2 text-xs font-semibold text-foreground"
+        className="inline-flex h-7 min-w-0 items-center gap-1 rounded-md bg-sel px-2 text-xs font-semibold text-foreground"
         // The count goes in the name too: aria-label replaces an element's
         // content for assistive tech, so the badge below is announced by
         // nothing on its own.
@@ -102,11 +103,7 @@ export function ScopePickerButton({
         }
       >
         <span className="truncate">{currentLabel}</span>
-        {unreadElsewhere > 0 && (
-          <span className="num shrink-0 rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground">
-            {unreadElsewhere > 99 ? "99+" : unreadElsewhere}
-          </span>
-        )}
+        <UnreadBadge count={unreadElsewhere} />
         <ChevronDown className="h-3 w-3 shrink-0 text-chrome" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-[70vh] w-64 overflow-y-auto">
@@ -153,16 +150,12 @@ function ScopeRow({
     <DropdownMenuItem
       onSelect={onSelect}
       // 44px: the touch target this codebase settles on, same as ChangesTab's.
-      className={cn("h-11 gap-2.5", active && "bg-accent font-semibold text-foreground")}
+      className={cn("h-11 gap-2.5", active && "bg-sel font-semibold text-foreground")}
     >
       {urgency && <span className={cn("h-2 w-2 shrink-0 rounded-full", DOT[urgency])} aria-hidden />}
       <span className="min-w-0 truncate">{label}</span>
       {project && <span className="shrink-0 text-2xs text-faint">{project}</span>}
-      {unread > 0 && !active && (
-        <span className="num ml-auto shrink-0 rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground">
-          {unread > 99 ? "99+" : unread}
-        </span>
-      )}
+      {!active && <UnreadBadge count={unread} className="ml-auto" />}
     </DropdownMenuItem>
   );
 }

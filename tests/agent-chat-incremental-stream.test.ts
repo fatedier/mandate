@@ -11,14 +11,14 @@ afterEach(() => { useAgentChatStore.setState(original, true); globalThis.fetch =
 const state = () => useAgentChatStore.getState();
 const patch = (deltaText: string, offset = 0, threadId = "t1", wakeId = "w1") => state().onMessagePatch({ threadId, wakeId, offset, deltaText });
 const thread = () => state().threadsByScope.get("manager")!;
-const message: AgentMessage = { id: "m1", threadId: "t1", wakeId: "w1", seq: 1, role: "assistant", source: "self", content: { type: "assistant", text: "step one" }, createdAt: "2026-09-13" };
+const message: AgentMessage = { id: "m1", threadId: "t1", wakeId: "w1", seq: 1, role: "assistant", source: "self", sourceThreadId: null, content: { type: "assistant", text: "step one" }, createdAt: "2026-09-13" };
 function load() {
   useAgentChatStore.setState({ threadsByScope: new Map([["manager", { ...newThreadState(), threadId: "t1" }]]) });
 }
 
 test("patches received before/during initial history load are present as soon as the conversation opens", async () => {
   let respond!: (response: Response) => void;
-  globalThis.fetch = (async () => new Promise<Response>((resolve) => { respond = resolve; })) as typeof fetch;
+  globalThis.fetch = (async () => new Promise<Response>((resolve) => { respond = resolve; })) as unknown as typeof fetch;
   patch("Hello");
   const loading = state().ensureThreadLoaded({ type: "manager" });
   patch(" world", 5);
@@ -36,7 +36,7 @@ test("patches received before/during initial history load are present as soon as
 test("reconnect history from an earlier step cannot erase the restored active step", async () => {
   load();
   state().onMessageStreams([{ threadId: "t1", wakeId: "w1", totalText: "step two" }]);
-  globalThis.fetch = (async () => Response.json({ thread: { id: "t1" }, messages: [message] })) as typeof fetch;
+  globalThis.fetch = (async () => Response.json({ thread: { id: "t1" }, messages: [message] })) as unknown as typeof fetch;
   await state().refetchIncrementalForOpenScopes();
   expect(thread().messages).toHaveLength(1);
   expect(thread().streamingAssistant?.totalText).toBe("step two");
@@ -73,7 +73,7 @@ test("side streams assemble separately, survive catch-up, and clear on cancel", 
   globalThis.fetch = (async (url) => {
     requests.push(String(url));
     return Response.json({ thread: { id: "side" }, messages: String(url).includes("/threads/side") ? [{ ...message, threadId: "side", wakeId: "side-wake" }] : [] });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   await state().refetchIncrementalForOpenScopes();
   expect(requests).toContain("/api/agents/threads/side?limit=50&since=0");
   expect(state().sideThread?.messages).toHaveLength(1);

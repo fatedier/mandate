@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { gitBranchExists } from "../../src/server/platform/git/git.js";
 import { tmuxHasWindow, tmuxListWindows } from "../../src/server/platform/tmux/tmux.js";
+import { buildPaneRuntimes } from "../../src/server/runtime/pane-runtime-registry.js";
 import {
   buildFeaturesTestApp,
   buildProjectsTestApp,
@@ -20,7 +21,10 @@ function makeApps() {
   const env = freshRealTmuxProjectEnv("md-db-");
   const deps = {
     projects: env.projects, features: env.features,
-    tmuxClient: env.tmux.client, broadcast: () => {}
+    tmuxClient: env.tmux.client, broadcast: () => {},
+    paneRuntimes: buildPaneRuntimes({
+      tmuxClient: env.tmux.client, projectsStore: env.projects, featuresStore: env.features
+    })
   };
   return {
     projectsApp: buildProjectsTestApp(deps),

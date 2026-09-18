@@ -29,27 +29,17 @@ export function CompressionSummaryMessage({ message }: CompressionSummaryMessage
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="my-1 w-full rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-left text-sm transition-colors hover:border-border hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="my-0.5 flex h-6 w-full items-center gap-2 px-1 text-left text-2xs text-faint transition-colors hover:text-foreground"
       >
-        <span className="flex items-start gap-2">
-          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-medium text-foreground">Conversation history compacted</span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              Compacted {count} earlier messages for future replies.
-              {time && (
-                <time
-                  className="ml-2 tabular-nums"
-                  dateTime={message.createdAt}
-                  title={absoluteTime}
-                >
-                  {time}
-                </time>
-              )}
-            </span>
-          </span>
-          <span className="mt-0.5 shrink-0 text-xs font-medium text-primary">View summary</span>
-        </span>
+        <FileText className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="shrink-0 label-micro">Context</span>
+        <span className="min-w-0 truncate">compressed {count} earlier messages</span>
+        <span className="shrink-0">View summary</span>
+        {time && (
+          <time className="ml-auto shrink-0 tabular-nums" dateTime={message.createdAt} title={absoluteTime}>
+            {time}
+          </time>
+        )}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>

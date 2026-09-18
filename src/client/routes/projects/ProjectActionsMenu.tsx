@@ -40,13 +40,14 @@ export function ProjectActionsMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="outline"
-          size="icon"
+          variant="ghost"
+          size="icon-xs"
+          className="text-chrome hover:text-foreground"
           aria-label="Project actions"
           title="Project actions"
           disabled={busy}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <MoreHorizontal className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

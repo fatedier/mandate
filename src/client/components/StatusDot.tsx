@@ -15,7 +15,6 @@ export function StatusDot({ status, className }: StatusDotProps) {
         `status-${resolved}`,
         className
       )}
-      style={{ boxShadow: "var(--status-glow, none)" }}
       aria-hidden="true"
     />
   );

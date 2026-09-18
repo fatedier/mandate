@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import { newId } from "../../platform/ids.js";
 import { WorkItemChangeEmitter } from "./work-item-events.js";
 import type { WorkItemChangeKind, WorkItemChangeListener } from "./work-item-events.js";
+import type { SqlValue } from "../../platform/db/sql-value.js";
 
 /** What the work_item is currently asking from the user. Null = nothing.
  *  `review` = user should glance and verify a completion.
@@ -307,7 +308,7 @@ export class WorkItemStore {
     } = {}
   ): WorkItem[] {
     const where: string[] = opts.unarchivedOnly ? [UNARCHIVED_WORK_ITEM_SCOPE] : [];
-    const args: unknown[] = [];
+    const args: SqlValue[] = [];
     if (opts.featureId !== undefined) {
       where.push("feature_id = ?");
       args.push(opts.featureId);

@@ -4,10 +4,12 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api-paths";
 import { ListRowSkeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/shell/PageHeader";
+import { PaneHeaderActions } from "@/shell/pane-header-slots";
 import { useUiPageSummary } from "@/lib/ui-context";
 import type { SessionDto, TmuxSessionsResponse } from "@shared/api-contracts";
 import { RefreshButton } from "@/components/RefreshButton";
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export function SessionDetailPage() {
   const params = useParams<{ sessionName: string }>();
@@ -49,62 +51,80 @@ export function SessionDetailPage() {
   }));
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-[1280px] w-full mx-auto">
-      <PageHeader
-        subtitle={
-          session?.ownership === "managed"
-            ? `Managed by project ${session.projectName}`
-            : session?.ownership === "unmanaged"
-              ? "Unmanaged tmux session"
-              : ""
-        }
-        trailing={<RefreshButton onRefresh={refresh} />}
-      />
+    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-7 px-4 pt-1 pb-6 md:px-8">
+      {/* Refresh lives in the header band (mobile TopBar / desktop PaneHeader),
+          not as an orphan button above the list. */}
+      <PaneHeaderActions>
+        <RefreshButton onRefresh={refresh} size="icon-xs" />
+      </PaneHeaderActions>
 
       {sessions === null ? (
         <ListRowSkeleton rows={3} />
       ) : session === null ? (
-        <div className="rounded-lg border border-border-soft bg-card p-6">
+        <div className="rounded-lg border border-border-soft bg-panel p-6">
           <p className="text-sm">Session <span className="font-mono">{sessionName}</span> not found.</p>
-          <Link to="/sessions" className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline">
+          <Link to="/sessions" className="mt-2 inline-flex items-center gap-1 text-sm text-foreground hover:underline">
             <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
             Back to all sessions
           </Link>
         </div>
-      ) : session.windows.length === 0 ? (
-        <div className="rounded-lg border border-border-soft bg-card p-6 text-center">
-          <p className="text-sm text-muted-foreground">No windows in this session.</p>
-        </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {session.windows.map((w) => (
-            <li key={`${w.windowId || w.name}-${w.index}`}>
-              <Link
-                to={`/sessions/${encodeURIComponent(sessionName)}/windows/${encodeURIComponent(w.name)}`}
-                className="flex items-center gap-3 rounded-lg border border-border-soft bg-card p-4 hover:bg-card/70 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground">
-                      [{w.index}]
+        // One header line, one quiet list: the same list language as Home.
+        // The active window earns the only colour on the page — a live dot.
+        <section className="flex flex-col gap-1.5">
+          <div data-slot="windows-header" className="flex h-8 items-center gap-2">
+            <span className="text-xs font-semibold text-foreground">
+              {session.ownership === "managed" ? `Managed by ${session.projectName}` : "Unmanaged"}
+            </span>
+            <span className="num text-2xs text-faint">{plural(session.windows.length, "window")}</span>
+          </div>
+          {session.windows.length === 0 ? (
+            <p className="text-2xs text-faint">No windows in this session.</p>
+          ) : (
+            <ul className="overflow-hidden rounded-lg border border-border-soft bg-panel">
+              {session.windows.map((w) => (
+                <li
+                  key={`${w.windowId || w.name}-${w.index}`}
+                  data-slot="window-row"
+                  data-active={w.active ? "true" : "false"}
+                  className="border-t border-border-soft first:border-t-0"
+                >
+                  <Link
+                    to={`/sessions/${encodeURIComponent(sessionName)}/windows/${encodeURIComponent(w.name)}`}
+                    className="flex min-h-13 items-center gap-2.5 py-1.5 pr-2 pl-3.5 transition-colors hover:bg-sel"
+                  >
+                    <span className="num min-w-[22px] shrink-0 font-mono text-2xs text-faint">[{w.index}]</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          data-slot="window-name"
+                          className="min-w-0 truncate font-mono text-xs font-medium text-foreground"
+                        >
+                          {w.name}
+                        </span>
+                        {w.active && (
+                          <span
+                            data-slot="window-live"
+                            className="size-1.5 shrink-0 rounded-full bg-live"
+                            aria-label="Active window"
+                          />
+                        )}
+                      </span>
+                      <span className="mt-0.5 block truncate text-2xs text-muted-foreground">
+                        {plural(w.panes.length, "pane")}
+                        {w.panes.some((p) => p.currentCommand) &&
+                          ` · ${w.panes.map((p) => p.currentCommand).filter(Boolean).slice(0, 4).join(", ")}`}
+                      </span>
                     </span>
-                    <span className="font-mono text-sm font-semibold truncate">{w.name}</span>
-                    {w.active && (
-                      <span className="text-xs text-primary">active</span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {w.panes.length} pane{w.panes.length === 1 ? "" : "s"}
-                    {w.panes.length > 0 && w.panes[0]!.currentCommand && (
-                      <> · {w.panes.map((p) => p.currentCommand).filter(Boolean).slice(0, 4).join(", ")}</>
-                    )}
-                  </p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </Link>
-            </li>
-          ))}
-        </ul>
+                    <span className="flex size-9 shrink-0 items-center justify-center text-faint" aria-hidden>
+                      <ChevronRight className="size-4" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
     </div>
   );

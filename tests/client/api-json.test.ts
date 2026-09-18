@@ -7,7 +7,7 @@ test.each([
   { ok: true, status: "failed", error: "Login expired" },
   [{ id: "first" }]
 ])("readJson preserves successful response data: %j", async (payload) => {
-  expect(await readJson(Response.json(payload))).toEqual(payload);
+  expect(await readJson<unknown>(Response.json(payload))).toEqual(payload);
 });
 
 test.each([

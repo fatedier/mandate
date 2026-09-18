@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { buildGetFeatureStatusTool } from "../src/server/modules/features/tools/get-feature-status.js";
 import { freshStoresEnv, seedFeature, seedProject } from "./helpers/fixtures.js";
+import type { TmuxSnapshot } from "../src/server/platform/tmux/tmux-types.js";
 
 // The window-key agreement between watch-window.ts and feature-window-store.ts
 // is pinned in tests/window-key-contract.test.ts, not here — that test needs
@@ -34,7 +35,7 @@ test("get_feature_status: returns shape with feature + panes from snapshot", asy
     const tool = buildGetFeatureStatusTool({
       featuresStore: env.features,
       projectsStore: env.projects,
-      getSnapshot: () => fakeSnapshot
+      getSnapshot: () => fakeSnapshot as unknown as TmuxSnapshot
     });
     const r = await tool.handler({ featureId: fId }, {} as any);
     expect(r.feature).toBeTruthy();
@@ -54,7 +55,7 @@ test("get_feature_status: returns error for missing feature", async () => {
   try {
     const tool = buildGetFeatureStatusTool({
       featuresStore: env.features, projectsStore: env.projects,
-      getSnapshot: () => ({})
+      getSnapshot: () => ({} as unknown as TmuxSnapshot)
     });
     const r = await tool.handler({ featureId: "nope" }, {} as any);
     expect(String(r.error)).toMatch(/not found/i);
@@ -82,7 +83,7 @@ test("get_feature_status: handles snapshot with no matching session/window", asy
     const { fId } = seedAlphaLogin(env);
     const tool = buildGetFeatureStatusTool({
       featuresStore: env.features, projectsStore: env.projects,
-      getSnapshot: () => ({ sessions: [] })
+      getSnapshot: () => ({ sessions: [] } as unknown as TmuxSnapshot)
     });
     const r = await tool.handler({ featureId: fId }, {} as any);
     expect(r.feature).toBeTruthy();

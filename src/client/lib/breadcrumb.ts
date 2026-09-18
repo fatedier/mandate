@@ -36,7 +36,8 @@ export function buildBreadcrumb({ pathname, bySlug }: BuildBreadcrumbInput): Bre
 
   if (head === "projects") {
     if (parts.length === 1) {
-      return [{ label: "Projects", current: true }];
+      // The nav item is "Home"; the band said "Projects" for the same page.
+      return [{ label: "Home", current: true }];
     }
     const projectSlug = parts[1] ?? "";
     const project = bySlug[projectSlug];

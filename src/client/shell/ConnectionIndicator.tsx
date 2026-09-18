@@ -20,7 +20,7 @@ export function ConnectionIndicator() {
 
   return (
     <div className="fixed inset-x-0 top-2 z-50 flex justify-center pointer-events-none">
-      <div className="px-3 py-1 rounded-full bg-card/95 text-muted-foreground text-xs font-medium border border-border-soft shadow-sm backdrop-blur">
+      <div className="px-3 py-1 rounded-full bg-panel text-muted-foreground text-xs font-medium border border-border-soft shadow-sm">
         Reconnecting…
       </div>
     </div>

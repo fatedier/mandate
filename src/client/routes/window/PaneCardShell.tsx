@@ -23,6 +23,8 @@ interface PaneCardMenuItem {
 
 interface PaneCardShellProps {
   title: string;
+  /** Set the title in mono when it is a command rather than a human name. */
+  titleMono?: boolean;
   /** Status indicator slot — the parent decides what dot/badge to render so
    *  this layout stays decoupled from status semantics. */
   statusIndicator?: ReactNode;
@@ -43,6 +45,7 @@ interface PaneCardShellProps {
  *  metadata; this component only owns the visual frame. */
 export function PaneCardShell({
   title,
+  titleMono = false,
   statusIndicator,
   metadata,
   preview,
@@ -65,23 +68,25 @@ export function PaneCardShell({
           handleActivate();
         }
       } : undefined}
+      data-slot="pane-card"
       className={cn(
-        "flex flex-col gap-2 p-3 rounded-lg border border-border-soft bg-card transition-colors",
+        "flex flex-col overflow-hidden rounded-lg border border-border-soft bg-panel transition-colors",
         clickable && "cursor-pointer hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       )}
     >
-      <header className="flex items-center gap-2 min-w-0">
-        <span className="font-mono text-xs font-semibold truncate">{title}</span>
-        {statusIndicator}
+      <header className="flex h-9 items-center gap-2 border-b border-border-soft px-3.5">
+        <span data-slot="pane-name" className={cn("min-w-0 truncate text-xs font-medium text-foreground", titleMono && "font-mono")}>{title}</span>
+        {statusIndicator && <span data-slot="pane-dot" className="shrink-0">{statusIndicator}</span>}
         <div className="ml-auto shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-background outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              data-slot="pane-menu"
+              className="flex size-7 shrink-0 items-center justify-center rounded-md text-chrome hover:bg-sel hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               aria-label="Pane actions"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
               {menuItems.map((item) => (
@@ -101,7 +106,7 @@ export function PaneCardShell({
         </div>
       </header>
       {metadata && (
-        <div className="flex items-center gap-2 text-2xs text-chrome font-mono min-w-0">
+        <div className="flex min-w-0 items-center gap-2 px-3.5 py-1.5 font-mono text-2xs text-faint">
           {metadata}
         </div>
       )}
@@ -111,29 +116,23 @@ export function PaneCardShell({
 }
 
 /** Preview block that pins itself to the bottom (latest terminal output) on
- *  first render and after each preview update — but only if the user hasn't
- *  scrolled up to read history. Mirrors LayoutPane's scroll-stickiness so
- *  the pane card behaves like a live tail, not a static log dump. */
+ *  first render and after each preview update: a live tail, not a static log
+ *  dump. The box is overflow-hidden, so the reader can never scroll it up —
+ *  there is no "reading history" state to preserve, and an earlier
+ *  was-at-bottom guard here could only ever be true. */
 function PaneCardPreview({ preview }: { preview: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastScrollHeightRef = useRef(0);
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    const wasAtBottom = el.scrollTop + el.clientHeight >= lastScrollHeightRef.current - 24;
-    if (wasAtBottom) {
-      el.scrollTop = el.scrollHeight;
-    }
-    lastScrollHeightRef.current = el.scrollHeight;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [preview]);
   return (
     <div
       ref={scrollRef}
-      className="max-h-32 md:max-h-56 overflow-hidden md:overflow-auto md:overscroll-contain scrollbar-thin"
+      data-slot="pane-preview"
+      className="max-h-[120px] overflow-hidden bg-code-bg px-3.5 py-2 font-mono text-2xs leading-[17px] text-muted-foreground whitespace-pre md:max-h-56"
     >
-      <pre className="m-0 text-muted-foreground font-mono text-2xs leading-snug whitespace-pre-wrap break-words">
-        {preview}
-      </pre>
+      {preview}
     </div>
   );
 }

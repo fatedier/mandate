@@ -27,7 +27,7 @@ interface ChatInputProps {
 
 const MAX_IMAGE_ATTACHMENTS = 4;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const INPUT_MIN_HEIGHT_PX = 56;
+const INPUT_MIN_HEIGHT_PX = 44;
 const INPUT_MAX_LINES = 8;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
@@ -46,6 +46,12 @@ export const ChatInput = memo(function ChatInput({
   const clearChatRef = useAgentChatStore((s) => s.clearChatRef);
   const isMobile = useIsMobile();
   const hasQueued = queuedMessages.length > 0;
+  const gutter = isMobile ? "0.75rem" : "1.75rem";
+  const placeholder = scope?.type === "worker"
+    ? "Message the worker…"
+    : scope?.type === "manager"
+      ? "Message the manager…"
+      : "Message…";
 
   // Local mirror of the pending ref so this input "captures" it once on
   // mount/scope-match — even after a ✕ cancel we don't re-pickup from store.
@@ -69,7 +75,7 @@ export const ChatInput = memo(function ChatInput({
     if (!ta) return;
     ta.style.height = "auto";
     const lineHeight = parseInt(getComputedStyle(ta).lineHeight, 10) || 20;
-    const maxHeight = lineHeight * INPUT_MAX_LINES + 16;
+    const maxHeight = lineHeight * INPUT_MAX_LINES + 4;
     ta.style.height = `${Math.max(INPUT_MIN_HEIGHT_PX, Math.min(ta.scrollHeight, maxHeight))}px`;
   }, [value]);
 
@@ -122,15 +128,20 @@ export const ChatInput = memo(function ChatInput({
 
   return (
     <div
-      className="flex flex-col gap-1 border-t border-border-soft bg-card pt-1.5"
+      className="flex flex-col gap-1.5 bg-background pt-2"
       style={{
-        paddingLeft: "max(env(safe-area-inset-left), 0.75rem)",
-        paddingRight: "max(env(safe-area-inset-right), 0.75rem)",
-        paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)"
+        paddingLeft: `max(env(safe-area-inset-left), ${gutter})`,
+        paddingRight: `max(env(safe-area-inset-right), ${gutter})`,
+        paddingBottom: `max(env(safe-area-inset-bottom), ${isMobile ? "0.75rem" : "1.25rem"})`,
+        maxWidth: 760 + 56,
+        marginLeft: "auto",
+        marginRight: "auto",
+        width: "100%",
+        boxSizing: "border-box"
       }}
     >
       {hasQueued && (
-        <div className="rounded-lg border border-dashed border-primary/35 bg-primary/5 px-2.5 py-2">
+        <div className="rounded-sm border border-dashed border-border bg-panel px-2.5 py-2">
           <div className="flex items-center gap-1.5 label-micro text-chrome">
             <Clock3 className="h-3 w-3" />
             <span>Queued</span>
@@ -149,14 +160,14 @@ export const ChatInput = memo(function ChatInput({
       )}
       {attachedRef && (
         <div className="flex items-center gap-1.5 px-1">
-          <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-phase-design/12 text-phase-design border border-phase-design/25">
+          <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-xs bg-sel text-muted-foreground">
             <Pin className="h-3 w-3" />
             <span className="font-medium truncate max-w-[280px]">re: {attachedRef.title}</span>
             <button
               type="button"
               aria-label="Remove work item reference"
               onClick={() => setAttachedRef(null)}
-              className="ml-0.5 rounded-full hover:bg-phase-design/20 p-0.5"
+              className="ml-0.5 rounded-full hover:bg-muted p-0.5"
             >
               <X className="h-3 w-3" />
             </button>
@@ -187,7 +198,7 @@ export const ChatInput = memo(function ChatInput({
       {attachmentError && (
         <div className="px-1 text-2xs text-destructive">{attachmentError}</div>
       )}
-      <div className="flex flex-col rounded-lg border border-border-soft bg-background px-3 py-2">
+      <div data-slot="composer" className="flex flex-col rounded-xl border border-border bg-panel px-4 pt-3 pb-2.5 shadow-composer">
         <input
           ref={fileRef}
           type="file"
@@ -213,58 +224,60 @@ export const ChatInput = memo(function ChatInput({
           onKeyDown={onKeyDown}
           onPaste={onPaste}
           rows={1}
-          placeholder="Message the agent…"
+          placeholder={placeholder}
           {...DISABLE_TEXT_ASSIST_PROPS}
-          className="w-full resize-none bg-transparent border-0 outline-none text-base leading-[1.5] placeholder:text-muted-foreground py-1 overflow-y-auto scrollbar-thin"
+          className="w-full resize-none bg-transparent border-0 outline-none text-sm leading-[1.6] placeholder:text-faint py-0.5 overflow-y-auto scrollbar-thin"
           style={{
             minHeight: INPUT_MIN_HEIGHT_PX,
-            maxHeight: `calc(${INPUT_MAX_LINES}lh + 1rem)`
+            maxHeight: `calc(${INPUT_MAX_LINES}lh + 0.25rem)`
           }}
         />
-        <div className="mt-1 flex items-center justify-end gap-1">
+        <div className="mt-2 flex items-center gap-0.5">
           {showMicButton && (
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-xs"
               onClick={() => {
                 setVoiceMode(true);
                 if (isMobile) closeDrawer();
               }}
               aria-label="Start voice"
-              className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+              className="shrink-0 text-chrome hover:text-foreground"
             >
               <Mic className="h-4 w-4" />
             </Button>
           )}
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-xs"
             onClick={() => fileRef.current?.click()}
             aria-label="Attach image"
             title="Attach image"
-            className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-chrome hover:text-foreground"
           >
             <ImagePlus className="h-4 w-4" />
           </Button>
+          <span className="flex-1" />
+          <span className="mr-2 text-2xs text-faint">⏎ to send</span>
           {canCancel ? (
             <button
               type="button"
               onClick={onCancel}
               aria-label="Stop agent"
               title="Stop agent"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-sel text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <Square className="h-3.5 w-3.5" fill="currentColor" />
             </button>
           ) : (
             <Button
               variant="default"
-              size="icon"
+              size="icon-xs"
               disabled={!canSend}
               onClick={submit}
               aria-label="Send message"
               title="Send message"
-              className={cn("h-9 w-9 shrink-0", !canSend && "opacity-50")}
+              className={cn("size-[30px] shrink-0 rounded-full", !canSend && "opacity-50")}
             >
               <Send className="size-3.5" />
             </Button>

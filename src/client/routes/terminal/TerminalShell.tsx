@@ -74,7 +74,7 @@ export const TerminalShell = forwardRef<HTMLDivElement, TerminalShellProps>(func
           variant="outline"
           size="icon"
           className={cn(
-            "absolute left-1/2 z-20 h-9 w-9 -translate-x-1/2 rounded-full shadow-md bg-card/95 backdrop-blur",
+            "absolute left-1/2 z-20 h-9 w-9 -translate-x-1/2 rounded-full shadow-md bg-panel",
             isMobile && keysVisible ? "bottom-20" : "bottom-6"
           )}
           aria-label="Scroll to bottom"
@@ -88,7 +88,7 @@ export const TerminalShell = forwardRef<HTMLDivElement, TerminalShellProps>(func
           variant="outline"
           size="sm"
           className={cn(
-            "absolute z-20 shadow-md bg-card/95 backdrop-blur",
+            "absolute z-20 shadow-md bg-panel",
             isMobile ? "right-3 top-3" : "right-6 top-6"
           )}
           aria-label="Copy selection"

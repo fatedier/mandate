@@ -57,7 +57,7 @@ function serveWorkItems(byFeature: Map<string, WorkItemDto>) {
     return new Response(JSON.stringify({ items: item ? [item] : [], nextCursor: null }), {
       status: 200, headers: { "content-type": "application/json" }
     });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
 }
 
 beforeEach(() => { resetStore(); requested = []; });
@@ -86,7 +86,7 @@ test("the pane does not flash 'no work item' before the lookup answers", async (
     return new Response(JSON.stringify({ items: [item], nextCursor: null }), {
       status: 200, headers: { "content-type": "application/json" }
     });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
 
   const { container, unmount } = await render("feat-slow");
   try {
@@ -183,7 +183,7 @@ test("switching to another feature looks that one up and does not carry the old 
 });
 
 test("a failed lookup does not reject into the console or wedge the pane", async () => {
-  globalThis.fetch = (async () => { throw new Error("offline"); }) as typeof fetch;
+  globalThis.fetch = (async () => { throw new Error("offline"); }) as unknown as typeof fetch;
   const { container, unmount } = await render("feat-offline");
   try {
     expect(container.textContent).toContain("no work item for this feature");

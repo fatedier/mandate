@@ -55,8 +55,8 @@ for (const action of ["history", "send"] as const) {
       await page.getByText("Current old conversation", { exact: true }).waitFor();
       if (action === "history") await page.getByRole("button", { name: "Load 50 older", exact: true }).click();
       else {
-        await page.getByPlaceholder("Message the agent…").fill("Pending old message");
-        await page.getByPlaceholder("Message the agent…").press("Enter");
+        await page.getByPlaceholder("Message the manager…").fill("Pending old message");
+        await page.getByPlaceholder("Message the manager…").press("Enter");
       }
       const route = await pending;
       await page.getByRole("button", { name: "New manager chat", exact: true }).click();

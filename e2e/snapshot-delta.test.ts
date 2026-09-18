@@ -6,6 +6,19 @@ import { mountSseRoutes } from "../src/server/modules/sse/sse-routes";
 import type { ProjectStateDto, WorkspaceSnapshot } from "../src/shared/api-contracts";
 import { startWorkspaceFixture, WORKER_PATH } from "./helpers/workspace-fixture";
 
+/** "Refresh panes" lives in the feature page's ⋯ menu since the redesign. */
+async function refreshPanes(page: import("playwright").Page) {
+  await page.getByRole("button", { name: "Feature actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Refresh panes" }).click();
+}
+/** Waits until a refresh has finished (the menu item is enabled again), then closes the menu. */
+async function waitForRefreshIdle(page: import("playwright").Page) {
+  await page.getByRole("button", { name: "Feature actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Refresh panes", disabled: false }).waitFor();
+  await page.keyboard.press("Escape");
+}
+
+
 let browser: Browser;
 beforeAll(async () => { browser = await chromium.launch(); });
 afterAll(async () => { await browser?.close(); });
@@ -114,7 +127,7 @@ test("window patches update previews and status, including removal and reappeara
     next.sessions[0]!.windows[0]!.aggregate = { status: "done" };
     env.publish(next);
     await env.page.getByText("Live preview", { exact: true }).waitFor();
-    expect(await env.page.getByRole("button", { name: "Terminal", exact: true }).locator(".bg-live").count()).toBe(0);
+    expect(await env.page.getByRole("tab", { name: "Terminal", exact: true }).locator(".bg-live").count()).toBe(0);
     const removed = structuredClone(next);
     removed.sessions[0]!.windows.shift();
     removed.snapshotVersion = { epoch: "browser-fixture", revision: 3 };
@@ -143,12 +156,12 @@ test("a delayed manual refresh cannot undo SSE updates in another window", async
       await waiting;
       await route.fulfill({ json: { ok: true, snapshot: stale } });
     });
-    await env.page.getByRole("button", { name: "Refresh panes", exact: true }).click();
+    await refreshPanes(env.page);
     const latest = update(stale, "Newer SSE preview", 2);
     env.publish(latest);
     await env.page.getByText("Newer SSE preview", { exact: true }).waitFor();
     release();
-    await env.page.getByRole("button", { name: "Refresh panes", exact: true }).waitFor();
+    await waitForRefreshIdle(env.page);
     const later = structuredClone(latest);
     later.snapshotVersion = { epoch: "browser-fixture", revision: 3 };
     later.sessions[0]!.windows[1]!.windowIndex = 5;
@@ -166,7 +179,7 @@ test("HTTP ahead of SSE remains visible while queued patches catch up", async ()
     const second = update(env.snapshot(), "Queued older preview", 2);
     const third = update(second, "Manual latest preview", 3);
     await env.page.route("**/api/windows/inspect", (route) => route.fulfill({ json: { ok: true, snapshot: third } }));
-    await env.page.getByRole("button", { name: "Refresh panes", exact: true }).click();
+    await refreshPanes(env.page);
     await env.page.getByText("Manual latest preview", { exact: true }).waitFor();
     env.publish(second);
     await env.page.waitForFunction(() => (window as unknown as { snapshotFrames: { patch: number } }).snapshotFrames.patch === 1);

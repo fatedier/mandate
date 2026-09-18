@@ -107,9 +107,10 @@ test("Worker subscriptions preserve loading, removal, reappearance and route cha
 test("Terminal ignores preview and sibling updates but follows visible metadata", async () => {
   const s = stream();
   const window = s.snapshot.sessions[0]!.windows[0]!;
-  const pane = window.panes![0]!;
+  const panes = window.panes as Array<Record<string, unknown>>;
+  const pane = panes[0]!;
   Object.assign(pane, { currentCommand: "zsh", currentPath: "/tmp/initial", paneWidth: 80, paneHeight: 24 });
-  window.panes!.push({ paneId: "%sibling", preview: "Sibling output" });
+  panes.push({ paneId: "%sibling", preview: "Sibling output" });
   await s.send();
   let renders = 0;
   function Terminal() {
@@ -160,10 +161,11 @@ test("Terminal subscriptions distinguish loading from missing and reselect on na
   expect(host.textContent).toBe("loading");
   await s.send();
   expect(host.textContent).toBe("%0");
-  const pane = s.snapshot.sessions[0]!.windows[0]!.panes!.shift()!;
+  const panes = s.snapshot.sessions[0]!.windows[0]!.panes as Array<Record<string, unknown>>;
+  const pane = panes.shift()!;
   await s.send();
   expect(host.textContent).toBe("missing");
-  s.snapshot.sessions[0]!.windows[0]!.panes!.push(pane);
+  panes.push(pane);
   await s.send();
   expect(host.textContent).toBe("%0");
   await render(<Terminal name="worker-1" id="%1" />);

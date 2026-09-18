@@ -116,13 +116,13 @@ export function NewFeatureDialog({ projectId, projectName, isGit }: NewFeatureDi
     >
       <DialogTrigger asChild>
         {/* Section-level affordance, not a page action: it rests at chrome
-            contrast and comes forward when the section is approached. */}
+            contrast on the header's 28px tier and comes forward on hover. */}
         <Button
           variant="ghost"
-          size="sm"
-          className="text-chrome group-hover/section:text-foreground"
+          size="xs"
+          className="text-chrome hover:text-foreground"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="size-3.5" />
           New feature
         </Button>
       </DialogTrigger>

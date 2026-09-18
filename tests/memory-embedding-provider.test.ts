@@ -28,7 +28,7 @@ test("createMemoryEmbedder: creates an OpenAI-compatible embedder from provider/
     let requestedUrl = "";
     let requestedAuth = "";
     const embedder = createMemoryEmbedder(loadConfig(dir), {
-      fetch: async (input, init) => {
+      fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
         requestedUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
         const headers = new Headers(init?.headers);
         requestedAuth = headers.get("authorization") ?? "";
@@ -36,7 +36,7 @@ test("createMemoryEmbedder: creates an OpenAI-compatible embedder from provider/
           data: [{ embedding: [0.25, 0.75] }],
           usage: { prompt_tokens: 1, total_tokens: 1 }
         });
-      }
+      }) as unknown as typeof fetch
     });
 
     expect(embedder?.model).toBe("localai/text-embedding-3-small");

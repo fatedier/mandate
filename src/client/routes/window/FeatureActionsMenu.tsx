@@ -1,40 +1,58 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { MoreHorizontal, RefreshCw, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
+import type { SnapshotWindow } from "@/lib/snapshot-types";
+import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api-paths";
+import type { WindowInspectRequest, WindowInspectResponse } from "@shared/api-contracts";
 
-interface ArchiveFeatureButtonProps {
+interface FeatureActionsMenuProps {
   featureId: string;
   featureName: string;
   featureMode?: string;
   branch?: string | null;
   hasWorktree?: boolean;
+  /** Snapshot window; its id drives "Refresh panes". Absent when the tmux
+   *  window is missing, in which case the item is disabled. */
+  window?: SnapshotWindow;
+  /** Pin state and toggle. When `onTogglePin` is absent the item is not shown
+   *  (the "Window not found" header has no feature to pin). */
+  pinned?: boolean;
+  onTogglePin?: () => void;
+  onClose: () => void;
 }
 
-/** Trash-icon button + confirm prompt for archiving a feature. Calls
- *  DELETE /api/features/:id. On success, navigates back to /projects.
+/** The feature page's one ⋯ menu: Refresh panes, Close, and — last and
+ *  separated — Archive feature (confirm dialog, DELETE /api/features/:id, then
+ *  back to /projects). One menu instead of three peers: refresh, close and an
+ *  irreversible archive used to read as equals on the header rail.
  *
- *  Why a button (not just an agent tool): the user expects normal CRUD —
+ *  Why a UI control (not just an agent tool): the user expects normal CRUD —
  *  if they made a feature in the UI, they should be able to delete it
  *  from the UI without context-switching to the agent. */
-export function ArchiveFeatureButton({
+export function FeatureActionsMenu({
   featureId,
   featureName,
   featureMode,
   branch,
-  hasWorktree
-}: ArchiveFeatureButtonProps) {
+  hasWorktree,
+  window,
+  pinned,
+  onTogglePin,
+  onClose
+}: FeatureActionsMenuProps) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -44,6 +62,21 @@ export function ArchiveFeatureButton({
   );
   const [removeWorktree, setRemoveWorktree] = useState(cleanup.removeWorktreeDefault);
   const [deleteBranch, setDeleteBranch] = useState(cleanup.deleteBranchDefault);
+
+  // Refresh is a fallback for when the SSE snapshot looks stale, not the thing
+  // you came here to do — which is why it lives in the menu, not on the rail.
+  const request = useApi();
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshPanes = async () => {
+    if (!window?.windowId || refreshing) return;
+    setRefreshing(true);
+    try {
+      const body = { windowId: window.windowId } satisfies WindowInspectRequest;
+      await request<WindowInspectResponse>("POST", api.windowInspect, body);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const onClick = async () => {
     if (busy) return;
@@ -81,15 +114,15 @@ export function ArchiveFeatureButton({
 
   return (
     <>
-      {/* Behind an overflow menu, not on the header rail. Archiving a feature is
-          rare and irreversible; as a permanent icon beside Refresh it was one
-          click away at all times and read as a peer of a reload. This matches
-          how projects already expose their destructive action on Home. */}
+      {/* Archive sits last and behind a separator. It is rare and irreversible;
+          as a permanent icon beside Refresh it was one click away at all times
+          and read as a peer of a reload. This matches how projects already
+          expose their destructive action on Home. */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-xs"
             aria-label="Feature actions"
             title="Feature actions"
             disabled={busy}
@@ -99,6 +132,21 @@ export function ArchiveFeatureButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled={refreshing || !window?.windowId} onSelect={() => void refreshPanes()}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh panes
+          </DropdownMenuItem>
+          {onTogglePin && (
+            <DropdownMenuItem onSelect={onTogglePin}>
+              <Star className={pinned ? "h-4 w-4 fill-foreground text-foreground" : "h-4 w-4"} />
+              {pinned ? "Unpin" : "Pin to top"}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={onClose}>
+            <X className="h-4 w-4" />
+            Close
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={onClick}
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"

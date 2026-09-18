@@ -1,12 +1,15 @@
 import {
+  isValidElement,
   memo,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type MouseEvent,
-  type MouseEventHandler
+  type MouseEventHandler,
+  type ReactNode
 } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
@@ -35,14 +38,7 @@ type LinkContextMenuHandler = (
 function createMarkdownComponents(onLinkContextMenu: LinkContextMenuHandler): Components {
   return {
     pre({ children, node: _node, ...props }) {
-      return (
-        <pre
-          className="bg-terminal-bg text-foreground p-3 rounded-sm my-2 whitespace-pre-wrap [overflow-wrap:anywhere] overflow-x-auto scrollbar-thin"
-          {...props}
-        >
-          {children}
-        </pre>
-      );
+      return <CodeBlock preProps={props}>{children}</CodeBlock>;
     },
     code({ className, children, node: _node, ...props }) {
       // Block code lives inside the <pre> above; inline code doesn't. remark
@@ -52,8 +48,11 @@ function createMarkdownComponents(onLinkContextMenu: LinkContextMenuHandler): Co
       const isBlock =
         /language-/.test(className ?? "") || String(children).includes("\n");
       if (isBlock) {
+        // 13px, not the prose's 14px: the mono face is optically larger at
+        // the same size, and a block that outsizes the paragraph around it
+        // reads as shouting.
         return (
-          <code className={`font-mono text-sm ${className ?? ""}`} {...props}>
+          <code className={`font-mono text-xs leading-[1.55] ${className ?? ""}`} {...props}>
             {children}
           </code>
         );
@@ -181,6 +180,108 @@ async function openExternalHttpUrl(url: string): Promise<void> {
   }
 }
 
+/**
+ * A fenced block as a lifted card: a 28px strip naming the language (when the
+ * fence did) with a Copy button, over the `<pre>`. The strip is what separates
+ * the block from the chat around it — the fill alone, a few steps from the
+ * page in either direction, kept reading as the same surface.
+ */
+function CodeBlock({
+  children,
+  preProps
+}: {
+  children: ReactNode;
+  preProps: Record<string, unknown>;
+}) {
+  const language = languageOf(children);
+  const text = textOf(children);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    []
+  );
+  const copy = useCallback(async () => {
+    const ok = await copyTextToClipboard(text);
+    if (!ok) return;
+    setCopied(true);
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1500);
+  }, [text]);
+  // Copy is revealed, not shown: hidden until the block is hovered or the
+  // button is focused, kept visible while it says Copied, and always visible
+  // on touch screens, which have no hover. A block with a language gets the
+  // strip and the button lives in it; an unnamed block gets no strip (an
+  // empty 28px band said nothing) and the button floats in its corner.
+  const copyButton = (
+    <button
+      type="button"
+      aria-label="Copy code"
+      className={[
+        "rounded-sm px-1.5 text-2xs text-muted-foreground transition-opacity hover:bg-sel hover:text-foreground",
+        "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
+        copied ? "opacity-100" : "",
+        language ? "" : "absolute top-1.5 right-1.5 bg-code-bg"
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      onClick={() => void copy()}
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+  return (
+    <div
+      data-slot="code-block"
+      className="group relative my-2 overflow-hidden rounded-md border border-border-soft bg-code-bg"
+    >
+      {language ? (
+        <div
+          data-slot="code-head"
+          className="flex h-7 items-center gap-2 border-b border-border-soft px-3 text-2xs text-chrome"
+        >
+          <span data-slot="code-lang" className="font-mono">
+            {language}
+          </span>
+          <span className="flex-1" />
+          {copyButton}
+        </div>
+      ) : (
+        copyButton
+      )}
+      <pre
+        className="bg-code-bg text-foreground px-3 py-2.5 whitespace-pre-wrap [overflow-wrap:anywhere] overflow-x-auto scrollbar-thin"
+        {...preProps}
+      >
+        {children}
+      </pre>
+    </div>
+  );
+}
+
+/** Tags that name no language: the strip shows nothing for them rather than
+ *  a word that says "this is text". */
+const UNNAMED_LANGUAGES = new Set(["text", "plain", "plaintext", "txt"]);
+
+/** The fence's language, from the `language-*` class remark puts on the code child. */
+function languageOf(children: ReactNode): string | null {
+  if (!isValidElement<{ className?: string }>(children)) return null;
+  const match = /language-([\w+#-]+)/.exec(children.props.className ?? "");
+  const tag = match?.[1] ?? null;
+  return tag && !UNNAMED_LANGUAGES.has(tag.toLowerCase()) ? tag : null;
+}
+
+/** The fence's literal text — what Copy writes — from the code child's strings. */
+function textOf(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children);
+  return "";
+}
+
 async function copyToClipboard(text: string): Promise<void> {
   const ok = await copyTextToClipboard(text);
   if (!ok) console.error("[mandate] failed to copy link");
@@ -252,7 +353,7 @@ export const MarkdownView = memo(function MarkdownView({ text, dense = false }: 
 
   return (
     <div
-      className={`${dense ? "text-sm leading-[1.45]" : "text-base leading-[1.5]"} min-w-0 [overflow-wrap:anywhere]`}
+      className={`${dense ? "text-sm leading-[1.45]" : "text-sm leading-[1.6]"} min-w-0 [overflow-wrap:anywhere]`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {text}
@@ -268,7 +369,7 @@ export const MarkdownView = memo(function MarkdownView({ text, dense = false }: 
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-sel"
             onClick={openMenuLink}
           >
             <ExternalLink className="h-4 w-4" />
@@ -277,7 +378,7 @@ export const MarkdownView = memo(function MarkdownView({ text, dense = false }: 
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-sel"
             onClick={copyMenuLink}
           >
             <Copy className="h-4 w-4" />

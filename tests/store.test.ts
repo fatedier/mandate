@@ -34,7 +34,7 @@ import { useUIStore } from "../src/client/store/ui.js";
 
 test("ui store: initial state", () => {
   const state = useUIStore.getState();
-  expect(["dark", "light"].includes(state.theme)).toBeTruthy();
+  expect(["system", "dark", "light"].includes(state.theme)).toBeTruthy();
   expect(typeof state.sidebarCollapsed).toBe("boolean");
 });
 

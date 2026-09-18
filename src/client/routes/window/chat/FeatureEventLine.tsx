@@ -28,26 +28,26 @@ function FeatureEventLineImpl({ content, createdAt }: FeatureEventLineProps) {
     <div className="my-1 flex flex-col gap-1">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-sm px-2 py-1 text-2xs",
+          "flex h-6 items-center gap-2 px-1 text-2xs",
           variant.containerCls
         )}
       >
-        <variant.Icon className={cn("h-3.5 w-3.5 shrink-0", variant.iconCls)} aria-hidden="true" />
+        <variant.Icon className={cn("size-3.5 shrink-0", variant.iconCls)} aria-hidden="true" />
         <span className="shrink-0 label-micro">feature</span>
         <span className="min-w-0 truncate">
-          {sourceLabel ? <span className="text-muted-foreground">{sourceLabel} · </span> : null}
+          {sourceLabel ? <span className="text-faint">{sourceLabel} · </span> : null}
           <span className="font-medium">{content.label}</span>
-          <span className="text-muted-foreground"> · {variant.verb}</span>
+          <span> · {variant.verb}</span>
           {content.summary ? (
             <>
-              <span className="text-muted-foreground">: </span>
+              <span>: </span>
               <span>{content.summary}</span>
             </>
           ) : null}
         </span>
         {time ? (
           <time
-            className="ml-auto shrink-0 text-2xs tabular-nums text-muted-foreground"
+            className="ml-auto shrink-0 text-2xs tabular-nums text-faint"
             dateTime={createdAt}
             title={createdAt ? formatDateTimeTitle(createdAt) : undefined}
           >
@@ -81,39 +81,39 @@ function resolveVariant(content: FeatureEventContent): Variant {
   if (content.kind === "limit_reached") {
     return {
       Icon: Activity,
-      iconCls: "text-muted-foreground",
-      containerCls: "text-muted-foreground bg-muted/40",
+      iconCls: "text-faint",
+      containerCls: "text-faint",
       verb: `hit step limit (${content.stepCount})`
     };
   }
   if (content.kind === "completion") {
     return {
       Icon: Activity,
-      iconCls: "text-muted-foreground",
-      containerCls: "text-muted-foreground bg-muted/40",
+      iconCls: "text-faint",
+      containerCls: "text-faint",
       verb: "completed"
     };
   }
   if (content.signal === "blocked") {
     return {
       Icon: AlertTriangle,
-      iconCls: "text-muted-foreground",
-      containerCls: "text-muted-foreground",
+      iconCls: "text-faint",
+      containerCls: "text-faint",
       verb: "blocked"
     };
   }
   if (content.signal === "needs_user") {
     return {
       Icon: HelpCircle,
-      iconCls: "text-muted-foreground",
-      containerCls: "text-muted-foreground",
+      iconCls: "text-faint",
+      containerCls: "text-faint",
       verb: "needs user"
     };
   }
   return {
     Icon: Activity,
-    iconCls: "text-muted-foreground",
-    containerCls: "text-muted-foreground bg-muted/40",
+    iconCls: "text-faint",
+    containerCls: "text-faint",
     verb: featureEventStatus(content)
   };
 }

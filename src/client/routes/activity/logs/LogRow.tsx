@@ -34,8 +34,8 @@ export function LogRow({ call, nowMs, selected, onOpen }: LogRowProps) {
         onClick={onOpen}
         aria-haspopup="dialog"
         className={cn(
-          "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-muted/40",
-          selected && "bg-muted/60"
+          "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-sel",
+          selected && "bg-sel"
         )}
       >
         <span data-log-info className="flex min-w-0 flex-1 flex-col gap-1 @max-[36rem]:basis-full">

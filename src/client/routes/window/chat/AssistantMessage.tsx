@@ -16,6 +16,9 @@ interface AssistantMessageProps {
   onToolExpandedChange?: (toolCallId: string, expanded: boolean) => void;
   /** When true, prefix the message with a small mic icon (voice provenance). */
   voiceMarker?: boolean;
+  /** When true, omit the clock row: the caller already shows this message's
+   *  time (the wake-provenance row is built from the same createdAt). */
+  hideClock?: boolean;
   /** When true, render as in-progress / ephemeral (reduced opacity, pulsing dot). */
   ephemeral?: boolean;
 }
@@ -27,13 +30,18 @@ export const AssistantMessage = memo(function AssistantMessage({
   expandedToolIds,
   onToolExpandedChange,
   voiceMarker,
+  hideClock = false,
   ephemeral
 }: AssistantMessageProps) {
   if (message.content.type !== "assistant") return null;
   const text = message.content.text;
   const toolCalls = (message.content.toolCalls ?? []) as ToolCallSpec[];
   const canvasReferences = collectCanvasReferences(toolCalls, toolResultsByCallId);
-  const messageTime = formatClockTime(message.createdAt);
+  // A wake that produced no text and called no tools has nothing to say; the
+  // provenance row above it (rendered by the list) is the whole record. This
+  // is what used to leave a bare timestamp row under every no-op heartbeat.
+  if (!text?.trim() && toolCalls.length === 0 && canvasReferences.length === 0) return null;
+  const messageTime = hideClock ? "" : formatClockTime(message.createdAt);
   // Tools in one step run in series and nothing on the wire records when any of
   // them began — a tool message's `createdAt` is when it came back. So a call's
   // start is the completion before it: the assistant message for the first,
@@ -53,12 +61,13 @@ export const AssistantMessage = memo(function AssistantMessage({
   });
 
   return (
-    <div className={cn("flex flex-col gap-1", ephemeral && "opacity-70")}>
+    <div className={cn("flex flex-col gap-1.5 text-sm leading-[1.6]", ephemeral && "opacity-70")}>
       {(voiceMarker || messageTime) && (
-        <div className="flex items-center gap-2 text-2xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-2xs text-faint">
           {voiceMarker && <VoiceMarkerHeader ephemeral={ephemeral} />}
           {messageTime && (
             <time
+              data-slot="assistant-clock"
               className="tabular-nums"
               dateTime={message.createdAt}
               title={formatDateTimeTitle(message.createdAt)}

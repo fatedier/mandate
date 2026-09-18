@@ -26,7 +26,7 @@ export function StatusPill({ status }: { status: string }) {
 const EFFECT_TONE: Record<string, string> = {
   update: "border-phase-working/35 bg-phase-working/10 text-phase-working",
   merge: "border-phase-design/35 bg-phase-design/10 text-phase-design",
-  archive: "border-status-review/35 bg-status-review/10 text-status-review",
+  archive: "border-amber/35 bg-amber/10 text-amber",
   rescope: "border-phase-verifying/35 bg-phase-verifying/10 text-phase-verifying",
   keep: "border-border-soft text-chrome",
   other: "border-border-soft text-muted-foreground"
@@ -85,7 +85,7 @@ export function MemoryCountDelta({
   if (onlyWhenChanged && delta === 0) return null;
   const tone =
     delta < 0 ? "text-phase-done" :
-    delta > 0 ? "text-status-review" :
+    delta > 0 ? "text-amber" :
     "text-muted-foreground";
   const sign = delta > 0 ? "+" : delta < 0 ? "−" : "±";
   const abs = Math.abs(delta);

@@ -28,29 +28,6 @@ function mount() {
   return { host, unmount: () => { act(() => root.unmount()); host.remove(); } };
 }
 
-test("the source chip is hidden when narrow and restored when wide", () => {
-  // happy-dom evaluates no container queries — this pins the tokens; the
-  // widths themselves are checked in a browser.
-  //
-  // Written the inverted way round: the wide chip is every class carrying NO
-  // variant, unchanged from before this work, and the narrow behaviour is the
-  // single `@max-[34rem]:hidden` layered under it. So "restored when wide" is
-  // the ABSENCE of an unprefixed `hidden` — a plain `hidden` would mean the
-  // chip was deleted outright rather than dropped only when narrow.
-  const view = mount();
-  try {
-    const chip = view.host.querySelector('[data-slot="provenance-source"]')!;
-    const t = classTokens(chip);
-    expect(t).toContain("@max-[34rem]:hidden");
-    expect(t).not.toContain("hidden");
-    // wide, unchanged from before this work
-    expect(t).toContain("shrink-0");
-    expect(t).toContain("font-mono");
-  } finally {
-    view.unmount();
-  }
-});
-
 test("the label and the detail are visible at every width", () => {
   // The POSITIVE half of the guard, and the reason it exists: asserting that
   // nothing forbidden appears proves nothing about what must remain. Both of
@@ -125,11 +102,8 @@ test("no width variant other than the narrow one reaches the provenance line", (
     const all = [...view.host.querySelectorAll("*")];
     const tokens = all.flatMap((el) => classTokens(el));
     expect(widthVariantOffenders(tokens)).toEqual([]);
-    // guard the guard: the walk must actually be reaching the narrow token
-    expect(tokens).toContain("@max-[34rem]:hidden");
-    // and neither the sanctioned variant nor the utility that establishes the
-    // context may itself read as an offender
-    expect(widthVariantOffenders(["@container", "@max-[34rem]:hidden"])).toEqual([]);
+    // The `[source]` chip is gone at every width, not hidden at one of them.
+    expect(view.host.querySelector('[data-slot="provenance-source"]') === null).toBe(true);
   } finally {
     view.unmount();
   }

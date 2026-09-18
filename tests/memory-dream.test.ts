@@ -1128,7 +1128,7 @@ test("memory dream routes list runs, show actions, and force a manual run", asyn
       "2026-05-20T00:00:30.000Z"
     );
 
-    let manualCall: { trigger: string; force?: boolean } | null = null;
+    let manualCall = null as { trigger: string; force?: boolean } | null;
     const app = new Hono();
     memoryModule.mountRoutes?.(app, {
       deps: {

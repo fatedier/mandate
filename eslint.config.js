@@ -71,6 +71,17 @@ export default [
     }
   },
   {
+    files: ["src/client/routes/sessions/PaneRowList.tsx"],
+    rules: {
+      // PaneRowList deliberately ships its row-data mappers next to the
+      // component so every consumer (the Window page, the terminal's pane
+      // switcher, tests) imports one path. Re-exporting from a helper module
+      // trips the rule just the same, so the exception is the honest fix.
+      // Keep it to this file so new files still get the rule.
+      "react-refresh/only-export-components": "off"
+    }
+  },
+  {
     files: ["tests/**/*.ts", "tests/**/*.tsx", "e2e/**/*.ts"],
     rules: {
       // Tests use loose mock payloads and fixture dispatchers extensively;

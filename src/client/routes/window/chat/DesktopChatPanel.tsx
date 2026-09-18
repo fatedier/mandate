@@ -11,6 +11,7 @@ import { AgentChatPanel } from "./AgentChatPanel";
 import { cn } from "@/lib/utils";
 import { shouldIgnoreGlobalEscape } from "@/lib/keyboard-targets";
 import { getChatPanelWidth } from "@/lib/pane-layout";
+import { UnreadBadge } from "@/components/UnreadBadge";
 
 /** Closing the dock shows its 40px rail. Worker zoom instead keeps the entire
  *  dock mounted at its split width, hidden and inert, so drafts and live
@@ -110,7 +111,7 @@ export function DesktopChatPanel({ width, workspaceWidth, workerZoomed }: {
         inert={workerZoomed}
         aria-hidden={workerZoomed || undefined}
         className={cn(
-          "animate-rail-in flex w-10 shrink-0 flex-col items-center gap-2 border-l border-border-soft bg-panel py-3",
+          "animate-rail-in flex w-10 shrink-0 flex-col items-center gap-2 border-l border-border-soft bg-panel pt-13 pb-3",
           workerZoomed && "absolute inset-y-0 right-0 invisible pointer-events-none"
         )}
       >
@@ -122,11 +123,7 @@ export function DesktopChatPanel({ width, workspaceWidth, workerZoomed }: {
           className="relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-background/40 hover:text-foreground"
         >
           <MessageSquare className="h-4 w-4" />
-          {railUnread > 0 && (
-            <span className="absolute -top-1 -right-1 inline-flex min-w-[16px] h-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold num text-primary-foreground">
-              {railUnread > 99 ? "99+" : railUnread}
-            </span>
-          )}
+          <UnreadBadge count={railUnread} className="absolute -top-1 -right-1" />
         </button>
         <button
           type="button"
@@ -155,7 +152,7 @@ export function DesktopChatPanel({ width, workspaceWidth, workerZoomed }: {
         "animate-dock-in relative flex flex-col min-h-0",
         drawerMode === "fullscreen"
           ? "absolute inset-0 z-[45] bg-background"
-          : "flex-shrink-0 border-l border-border-soft bg-card",
+          : "flex-shrink-0 border-l border-border-soft bg-background",
         workerZoomed && "absolute inset-y-0 right-0 invisible pointer-events-none"
       )}
     >
@@ -191,14 +188,23 @@ export function DesktopChatPanel({ width, workspaceWidth, workerZoomed }: {
               on its left edge gives the actual visual feedback on hover —
               everything stays inside the panel; nothing protrudes into
               the main column. */}
-          <div className="w-px bg-transparent transition-colors group-hover:bg-primary/70 group-active:bg-primary" />
+          <div className="w-px bg-transparent transition-colors group-hover:bg-border group-active:bg-border" />
+          {/* The grip is the only hint that the hairline is draggable. */}
+          <span
+            aria-hidden
+            data-slot="pane-grip"
+            // Hover-only: a permanent grip read as clutter between two panes
+            // that are otherwise separated by a hairline, the way native mac
+            // splitters are. It appears when the pointer reaches the handle.
+            className="pointer-events-none absolute left-1/2 top-1/2 h-9 w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-faint opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+          />
         </div>
       )}
       <div
         className={cn(
-          "flex min-h-0 flex-col bg-card",
+          "flex min-h-0 flex-col bg-background",
           drawerMode === "fullscreen"
-            ? "mx-auto h-full w-full max-w-4xl border-x border-border-soft"
+            ? "mx-auto h-full w-full max-w-[55rem]"
             : "h-full w-full"
         )}
       >

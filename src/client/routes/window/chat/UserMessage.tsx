@@ -30,9 +30,9 @@ function UserMessageImpl({ text, attachments = [], status, error, createdAt, onR
     <div className="flex justify-end">
       <div
         className={cn(
-          "max-w-[80%] rounded-lg px-3 py-2 bg-primary/10 text-foreground",
-          isSending && "border border-primary/25 bg-primary/10",
-          isQueued && "border border-dashed border-primary/35 bg-primary/5",
+          "max-w-[78%] rounded-[16px_16px_4px_16px] bg-user-bubble px-3.5 py-2.5 text-foreground",
+          isSending && "border border-border",
+          isQueued && "border border-dashed border-border",
           ephemeral && "opacity-70",
           isFailed && "border border-red"
         )}
@@ -62,10 +62,10 @@ function UserMessageImpl({ text, attachments = [], status, error, createdAt, onR
             ))}
           </div>
         )}
-        {text && <div className="text-base leading-[1.5] whitespace-pre-wrap break-words">{text}</div>}
+        {text && <div className="text-sm leading-[1.6] whitespace-pre-wrap break-words">{text}</div>}
         {messageTime && (
           <time
-            className="mt-1 block text-right text-2xs tabular-nums text-muted-foreground"
+            className="mt-1 block text-right text-2xs tabular-nums text-faint"
             dateTime={createdAt}
             title={formatDateTimeTitle(createdAt)}
           >

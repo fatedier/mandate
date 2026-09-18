@@ -135,7 +135,7 @@ function SourceBadge({ source }: { source: SkillSummaryDto["source"] }) {
 
 function SkillsSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border-soft bg-card">
+    <div className="overflow-hidden rounded-lg border border-border-soft bg-panel">
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-7 w-20" />

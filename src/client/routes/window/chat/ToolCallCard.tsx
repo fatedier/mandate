@@ -138,7 +138,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
 
   return (
     <div className={cn(
-      "border border-border-soft rounded-md my-1 bg-card/50 text-xs"
+      "border border-border-soft rounded-sm my-0.5 max-w-full self-start text-2xs"
     )}>
       {/* Every class outside a variant below is the wide row exactly as it has
           always been, and the narrow layout is added under `@max-[34rem]:`
@@ -153,7 +153,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-muted/30 rounded-t-md text-left @max-[34rem]:flex-wrap @max-[34rem]:gap-y-0.5"
+        className="flex items-center gap-2 w-full min-h-[30px] px-2.5 py-1 hover:bg-sel rounded-t-sm text-left @max-[34rem]:flex-wrap @max-[34rem]:gap-y-0.5"
       >
         <Chevron className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         {StatusIcon}
@@ -165,7 +165,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
             the card. */}
         <span
           data-slot="tool-name"
-          className="font-mono font-semibold @max-[34rem]:flex-1 @max-[34rem]:min-w-0 @max-[34rem]:truncate"
+          className="font-mono font-medium text-muted-foreground @max-[34rem]:flex-1 @max-[34rem]:min-w-0 @max-[34rem]:truncate"
         >
           {call.toolName}
         </span>
@@ -206,7 +206,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
               <CopyButton text={argsText} label="Copy args" />
             </div>
             {argRows ? (
-              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-sm bg-terminal-bg p-2">
+              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-sm bg-code-bg p-2">
                 {argRows.map(([key, value]) => (
                   <Fragment key={key}>
                     <dt className="font-mono text-2xs text-chrome">{key}</dt>
@@ -217,7 +217,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
                 ))}
               </dl>
             ) : (
-              <pre className="scroll-x-quiet max-w-full whitespace-pre rounded-sm bg-terminal-bg p-2 text-2xs text-foreground">
+              <pre className="scroll-x-quiet max-w-full whitespace-pre rounded-sm bg-code-bg p-2 text-2xs text-foreground">
                 {argsText}
               </pre>
             )}
@@ -241,7 +241,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
                 <CopyButton text={resultText} label="Copy result" />
               </div>
               {imageResult ? (
-                <div className="rounded-sm bg-terminal-bg p-2 text-2xs text-foreground">
+                <div className="rounded-sm bg-code-bg p-2 text-2xs text-foreground">
                   <a
                     href={imageResultSrc(imageResult)}
                     target="_blank"
@@ -269,7 +269,7 @@ function ToolCallCardImpl({ call, result, isRunning, startedAt, expanded: contro
                 // reflowing destroys the alignment that carries the meaning.
                 <div className={cn(
                   "max-w-full rounded-sm text-2xs",
-                  result.isError ? "bg-red/10 text-red" : "bg-terminal-bg text-foreground",
+                  result.isError ? "bg-red/10 text-red" : "bg-code-bg text-foreground",
                   hasLongResult && !showAll && "max-h-[min(28rem,55vh)] overflow-y-auto scrollbar-thin"
                 )}>
                   <pre className="scroll-x-quiet whitespace-pre p-2">

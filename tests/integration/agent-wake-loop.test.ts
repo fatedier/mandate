@@ -7,6 +7,7 @@ import { AgentStore } from "../../src/server/modules/agent/agent-store.js";
 import { AgentUserMessageQueue } from "../../src/server/modules/agent/user-message-queue.js";
 import { buildFeatureTaskSendTool } from "../../src/server/modules/agent/tools/feature-task-tools.js";
 import { WakeLock } from "../../src/server/modules/agent/wake-lock.js";
+import type { AgentScope } from "../../src/server/modules/agent/tool-scope.js";
 import { WakeScheduler } from "../../src/server/modules/agent/wake-loop.js";
 import { createTestWakeScheduler } from "../helpers/wake-scheduler.js";
 import { createMockLLM } from "../helpers/mock-llm.js";
@@ -20,7 +21,7 @@ function fresh() {
 }
 
 const STUB_PROMPT_BUILDER = (_threadId: string) => "stub system prompt";
-const STUB_SCOPE_BUILDER = (_threadId: string) => ({ kind: "worker", feature: { workingDir: "/tmp/stub" }, project: { workingDir: "/tmp/stub" } });
+const STUB_SCOPE_BUILDER = (_threadId: string): AgentScope => ({ kind: "worker", feature: { workingDir: "/tmp/stub" }, project: { workingDir: "/tmp/stub" } });
 const STUB_TOOL_DISPATCHER = {
   registry: { tools: {} as any },
   async dispatch(call: any) {

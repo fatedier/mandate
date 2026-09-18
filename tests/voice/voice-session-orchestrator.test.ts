@@ -21,6 +21,7 @@ class FakeProvider implements VoiceProvider {
       sendToolResult: (callId, payload) => { this.sentTool = { callId, payload }; },
       sendContextMessage: (text) => { this.contextMessages.push(text); },
       cancelResponse: () => {},
+      truncateItem: () => {},
       preloadHistory: (items) => { this.preloaded.push(...items); },
       close: async () => { this.closeCalled = true; }
     };
@@ -193,7 +194,7 @@ test("VoiceSessionOrchestrator: dispatch_to_manager kicks wake + delivers final 
       args: { query: "what's risky in my recent work" }
     });
     await new Promise((r) => setTimeout(r, 10));
-    expect(scheduledWakeId).toBe("wake-x");
+    expect(scheduledWakeId as string | null).toBe("wake-x");
     expect(toolResultWasPresentAtWake).toBe(true);
     // Voice model gets immediate {status:"started"} ack
     expect(provider.sentTool?.callId).toBe("c-manager");

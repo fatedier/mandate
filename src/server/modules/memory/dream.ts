@@ -35,6 +35,7 @@ import type { MemoryDreamActionDto, MemoryDreamRunDto } from "../../../shared/ap
 import type { MemoryManager } from "./manager.js";
 import { clamp01, jsonOrNull, mergeMetadata, rowToEntry, type MemoryRow } from "./local-provider-helpers.js";
 import type { MemoryEntry, MemoryScope, MemorySearchResult } from "./types.js";
+import type { SqlValue } from "../../platform/db/sql-value.js";
 
 const DEFAULT_MAX_CANDIDATES = 100;
 const DEFAULT_MAX_STEPS = 100;
@@ -1677,7 +1678,7 @@ function projectIdForPartition(partition: MemoryDreamPartition): string | null {
   return partition.kind === "project" ? partition.projectId : null;
 }
 
-function partitionSql(partition: MemoryDreamPartition): { where: string; params: unknown[] } {
+function partitionSql(partition: MemoryDreamPartition): { where: string; params: SqlValue[] } {
   if (partition.kind === "project") {
     return {
       where: "scope in ('project','feature') and project_id = ?",

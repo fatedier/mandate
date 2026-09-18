@@ -8,12 +8,12 @@ export function VoiceMicVisualizer() {
   const toggleMicMuted = useVoiceStore((s) => s.toggleMicMuted);
   const state = useVoiceStore((s) => s.connectionState);
 
-  const color = micMuted ? "text-status-review"
+  const color = micMuted ? "text-amber"
     : state === "error" ? "text-status-input"
     : state === "ready" || state === "listening" ? "text-live"
     : "text-muted-foreground";
 
-  const bgColor = micMuted ? "bg-status-review"
+  const bgColor = micMuted ? "bg-amber"
     : state === "error" ? "bg-status-input"
     : state === "ready" || state === "listening" ? "bg-live"
     : "bg-muted-foreground";

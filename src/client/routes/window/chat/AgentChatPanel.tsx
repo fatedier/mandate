@@ -25,6 +25,7 @@ import { ChatInput } from "./ChatInput";
 import { cn } from "@/lib/utils";
 import type { AgentMessageAttachment } from "@shared/agent-message-types";
 import { ScopePickerButton } from "./ScopePickerButton";
+import { UnreadBadge } from "@/components/UnreadBadge";
 
 export function AgentChatPanel() {
   const navigate = useNavigate();
@@ -248,16 +249,26 @@ export function AgentChatPanel() {
           and the feature chat was the single state that did not, which is what
           collapsing the two scope tabs into one switch control fixed. With no
           state left to protect, the rule is simply `isMobile`. */}
-      <div className="@container border-b border-border-soft px-4 py-3 flex flex-row items-center justify-between gap-2 shrink-0">
+      <div
+        data-slot="chat-header"
+        data-tauri-drag-region
+        className="@container flex h-13 shrink-0 flex-row items-center justify-between gap-2 pl-3 pr-2"
+      >
         <div className="min-w-0 flex items-center gap-1 overflow-hidden">
           {sideActive ? (
             <>
-              <Button variant="ghost" size="icon" aria-label="Return to main conversation" onClick={showMainConversation}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="text-chrome hover:text-foreground"
+                aria-label="Return to main conversation"
+                onClick={showMainConversation}
+              >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <span className="truncate text-xs font-semibold">Side</span>
               <span
-                className={cn("h-2 w-2 shrink-0 rounded-full", parentBusy ? "bg-status-review" : "bg-primary")}
+                className={cn("h-2 w-2 shrink-0 rounded-full", parentBusy ? "bg-amber" : "bg-faint")}
                 title={parentBusy ? "Main conversation is running" : "Main conversation is idle"}
               />
             </>
@@ -303,12 +314,19 @@ export function AgentChatPanel() {
           />
           {sideActive ? (
             <>
-              <Button variant="ghost" size="icon" aria-label="Send summary to main conversation" onClick={() => void handleOpenSummary()}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="text-chrome hover:text-foreground"
+                aria-label="Send summary to main conversation"
+                onClick={() => void handleOpenSummary()}
+              >
                 <Forward className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
+                size="icon-xs"
+                className="text-chrome hover:text-foreground"
                 aria-label="Close side conversation"
                 disabled={sideBusy}
                 onClick={() => void closeSideConversation()}
@@ -319,7 +337,8 @@ export function AgentChatPanel() {
           ) : (
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-xs"
+              className="text-chrome hover:text-foreground"
               aria-label={sideThread ? "Open side conversation" : "Start side conversation"}
               title={sideThread ? "Open side conversation" : "Start side conversation"}
               disabled={sideBusy || !mainThread?.threadId || mainThread.messages.length === 0}
@@ -331,7 +350,8 @@ export function AgentChatPanel() {
           {!sideActive && (
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-xs"
+              className="text-chrome hover:text-foreground"
               aria-label={isManager ? "New manager chat" : "New feature chat"}
               title={isManager ? "New manager chat" : "New feature chat"}
               disabled={creatingNewChat}
@@ -342,7 +362,8 @@ export function AgentChatPanel() {
           )}
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-xs"
+            className="text-chrome hover:text-foreground"
             aria-label={isMobile ? "Close chat" : "Collapse chat dock"}
             onClick={handleClose}
           >
@@ -448,7 +469,7 @@ export function AgentChatPanel() {
             onChange={(event) => setSummaryDraft(event.target.value)}
             rows={10}
             disabled={summaryBusy}
-            className="w-full resize-y rounded-md border border-border-soft bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+            className="w-full resize-y rounded-md border border-border-soft bg-background px-3 py-2 text-sm outline-none focus:border-ring"
           />
           <DialogFooter>
             <Button variant="ghost" disabled={summaryBusy} onClick={() => setSummaryOpen(false)}>Cancel</Button>
@@ -480,19 +501,13 @@ function ScopeTab({ active, label, unread, onClick, flexible = false }: {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "relative flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors",
+        "relative flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-colors",
         flexible ? "min-w-0 max-w-40 shrink" : "shrink-0",
-        active
-          ? "bg-foreground/[0.07] text-foreground"
-          : "text-chrome hover:bg-foreground/5 hover:text-foreground"
+        active ? "bg-sel text-foreground" : "text-chrome hover:bg-sel hover:text-foreground"
       )}
     >
       <span className="truncate">{label}</span>
-      {unread > 0 && !active && (
-        <span className="inline-flex min-w-[15px] h-3.5 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold num text-primary-foreground">
-          {unread > 99 ? "99+" : unread}
-        </span>
-      )}
+      {!active && <UnreadBadge count={unread} />}
     </button>
   );
 }
@@ -509,7 +524,7 @@ function ContextBudgetPill({ usage, compact = false }: { usage: AgentContextUsag
     ? "bg-status-input"
     : percent !== null && percent >= 85
       ? "bg-status-review"
-      : "bg-primary";
+      : "bg-faint";
   const title = inputTokens !== null && budgetTokens !== null
     ? `Last successful agent call used ${formatTokenCount(inputTokens)} of ${formatTokenCount(budgetTokens)} compression budget.`
     : "No successful agent context measurement yet.";
@@ -525,7 +540,7 @@ function ContextBudgetPill({ usage, compact = false }: { usage: AgentContextUsag
   return (
     <div
       className={cn(
-        "shrink-0 items-center gap-1.5 rounded-md border border-border-soft bg-muted/30 px-2 py-1 text-2xs font-medium text-muted-foreground",
+        "shrink-0 items-center gap-1.5 px-1.5 text-2xs text-faint",
         // Two rules on purpose. The desktop dock can be dragged to any width,
         // so it degrades by width. A phone has exactly one width — the header's
         // content box measures 358px at 390px, which can never reach 27rem — so
@@ -539,7 +554,7 @@ function ContextBudgetPill({ usage, compact = false }: { usage: AgentContextUsag
       title={title}
       aria-label={title}
     >
-      <span className="hidden h-1.5 w-9 overflow-hidden rounded-full bg-muted @[31rem]:block">
+      <span className="hidden h-1 w-9 overflow-hidden rounded-full bg-sel @[31rem]:block">
         <span
           className={cn("block h-full rounded-full", tone)}
           style={{ width: `${fillPercent}%` }}

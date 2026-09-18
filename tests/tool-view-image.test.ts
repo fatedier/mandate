@@ -152,7 +152,7 @@ test("viewImageTool: runtime guard rejects unsupported tool-result image path", 
 });
 
 test("buildFileToolPacks: always registers view_image and leaves support to runtime guard", () => {
-  const tools = buildFileToolPacks("feature", {
+  const tools = buildFileToolPacks("worker", {
     supportsInputForScope: () => false,
     supportsInputForThread: () => false,
     supportsToolResultImagesForThread: () => false
@@ -163,7 +163,7 @@ test("buildFileToolPacks: always registers view_image and leaves support to runt
 test("buildFileToolPacks: allows view_image for responses-style image-capable paths", async () => {
   await withTempDir(async (wd) => {
     fs.writeFileSync(path.join(wd, "screenshot.png"), PNG_BYTES);
-    const tool = buildFileToolPacks("feature", {
+    const tool = buildFileToolPacks("worker", {
       supportsInputForThread: (_threadId, input) => input === "image",
       supportsToolResultImagesForThread: () => true
     })[0]!.tools.find((item) => item.name === "view_image")!;
@@ -178,7 +178,7 @@ test("buildFileToolPacks: allows view_image for responses-style image-capable pa
 test("buildFileToolPacks: rejects view_image for chat-style image-capable paths", async () => {
   await withTempDir(async (wd) => {
     fs.writeFileSync(path.join(wd, "screenshot.png"), PNG_BYTES);
-    const tool = buildFileToolPacks("feature", {
+    const tool = buildFileToolPacks("worker", {
       supportsInputForThread: (_threadId, input) => input === "image",
       supportsToolResultImagesForThread: () => false
     })[0]!.tools.find((item) => item.name === "view_image")!;

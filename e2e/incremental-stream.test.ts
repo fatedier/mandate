@@ -94,7 +94,7 @@ test("browser renders incremental text, reconnects mid-step, and replaces the st
     expect(await dock.getByText("Second step, generated while disconnected, resumed", { exact: true }).count()).toBe(0);
     const final = fixture.appendMessage("Final reply after fallback", "stream-wake");
     sse.emit("agentMessageAppended", { threadId: "zoom-thread", message: final as never });
-    sse.emit("agentWakeFinished", { threadId: "zoom-thread", wakeId: "stream-wake", status: "succeeded" });
+    sse.emit("agentWakeFinished", { threadId: "zoom-thread", wakeId: "stream-wake", status: "finished" });
     await page.waitForTimeout(150);
     expect(await dock.getByText("Final reply after fallback", { exact: true }).count()).toBe(1);
     expect(await dock.locator("span.animate-pulse[aria-hidden]").count()).toBe(0);

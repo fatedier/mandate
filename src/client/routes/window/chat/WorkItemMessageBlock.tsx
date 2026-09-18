@@ -13,16 +13,9 @@ interface WorkItemMessageBlockProps {
   onOpen: (id: string) => void;
 }
 
-const NEEDS_USER_DOT: Record<string, string> = {
-  input: "bg-status-input",
-  review: "bg-status-review",
-  idle: "bg-faint"
-};
-
 const NEEDS_USER_LABEL: Record<string, string> = {
-  input: "input",
-  review: "review",
-  idle: "idle"
+  input: "Needs input",
+  review: "Review"
 };
 
 /**
@@ -54,50 +47,33 @@ export function WorkItemMessageBlock({
     <button
       type="button"
       onClick={() => onOpen(itemId)}
-      className={cn(
-        "group block w-full text-left my-1 px-3 py-2.5 rounded-lg border transition-colors",
-        "border-border-soft bg-muted/30 hover:bg-muted/50 hover:border-border"
-      )}
+      className="group my-1 block w-full overflow-hidden rounded-lg border border-border-soft bg-panel text-left transition-colors hover:border-border"
     >
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="label-micro text-chrome">
-          Work item
-        </span>
-        <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-          <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-        </span>
-      </div>
-
-      <div className="flex items-start gap-2">
+      <div className="flex items-center gap-2 border-b border-border-soft px-3 py-2">
         <span
           aria-label={`needs-user: ${needsUserKey}`}
-          className={cn("mt-1.5 shrink-0 h-2 w-2 rounded-full", NEEDS_USER_DOT[needsUserKey])}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm leading-snug text-foreground">
-            {title}
-          </div>
-          {body ? (
-            <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-              {body}
-            </div>
-          ) : null}
-          {(featureRefs.length > 0 || projectRefs.length > 0) ? (
-            <div className="mt-1.5">
-              <WorkItemRefsInline
-                featureRefs={featureRefs}
-                projectRefs={projectRefs}
-                max={3}
-              />
-            </div>
-          ) : null}
-          {!liveItem ? (
-            <div className="mt-1 text-2xs text-muted-foreground/60">
-              {NEEDS_USER_LABEL[needsUserKey]} · loading live state…
-            </div>
-          ) : null}
-        </div>
+          className={cn("pill", needsUserKey === "input" ? "pill-red" : needsUserKey === "review" ? "pill-review" : "pill-neutral")}
+        >
+          {needsUserKey === "idle" ? "Work item" : NEEDS_USER_LABEL[needsUserKey]}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{title}</span>
+        <ArrowUpRight className="size-3.5 shrink-0 text-faint opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
       </div>
+      {/* Padding on the outer element, clamp on the inner one: a clamp on a
+          padded element leaks a partial third line into the padding box. */}
+      {body ? (
+        <div className="px-3 py-2">
+          <div className="line-clamp-2 text-xs leading-[1.55] text-muted-foreground">{body}</div>
+        </div>
+      ) : null}
+      {(featureRefs.length > 0 || projectRefs.length > 0) ? (
+        <div className="px-3 pb-2">
+          <WorkItemRefsInline featureRefs={featureRefs} projectRefs={projectRefs} max={3} />
+        </div>
+      ) : null}
+      {!liveItem ? (
+        <div className="px-3 pb-2 text-2xs text-faint">loading live state…</div>
+      ) : null}
     </button>
   );
 }

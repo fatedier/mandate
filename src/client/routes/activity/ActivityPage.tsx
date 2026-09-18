@@ -2,7 +2,8 @@ import { useCallback, useState } from "react";
 
 import { useSearchParams } from "react-router";
 import { ACTIVITY_GROUP_KEYS, type ActivityGroupKey } from "@shared/api-contracts";
-import { PageHeader } from "@/shell/PageHeader";
+import { PillTabs } from "@/components/PillTabs";
+import { PaneHeaderActions } from "@/shell/pane-header-slots";
 import { readEnum, withParam } from "@/lib/url-params";
 import { cn } from "@/lib/utils";
 import { BreakdownTab } from "./BreakdownTab";
@@ -156,72 +157,50 @@ export function ActivityPage() {
   const busy = tab !== "logs" && summaryLoading;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 p-6">
-      <PageHeader
-        subtitle="Every LLM call Mandate makes — what it cost in time, and what went wrong."
-        trailing={
-          <div className="flex items-center gap-2">
-            {/* The window belongs to the page, not to a tab, so it sits in the
-                header beside Refresh rather than inside any one panel — every
-                figure below it, on all three tabs, is read over this span. */}
-            <div
-              role="group"
-              aria-label="Window"
-              className="flex items-center gap-0.5 rounded-md border border-border p-0.5"
+    <div
+      data-slot="page-column"
+      className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-1 pb-6 md:px-8"
+    >
+      {/* The window belongs to the page, not to a tab, so it sits in the header
+          band beside Refresh rather than inside any one panel — every figure
+          below it, on all three tabs, is read over this span. */}
+      <PaneHeaderActions>
+        <div
+          role="group"
+          aria-label="Window"
+          data-slot="activity-window"
+          className="flex items-center gap-0.5 rounded-md border border-border-soft p-0.5"
+        >
+          {ACTIVITY_WINDOW_OPTIONS.map((option) => (
+            <button
+              key={option.days}
+              type="button"
+              aria-pressed={option.days === windowDays}
+              aria-label={`Last ${option.label}`}
+              onClick={() => setWindowDays(option.days)}
+              className={cn(
+                "num inline-flex h-7 items-center rounded px-2 text-2xs transition-colors",
+                option.days === windowDays
+                  ? "bg-sel font-semibold text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              {ACTIVITY_WINDOW_OPTIONS.map((option) => (
-                <button
-                  key={option.days}
-                  type="button"
-                  aria-pressed={option.days === windowDays}
-                  aria-label={`Last ${option.label}`}
-                  onClick={() => setWindowDays(option.days)}
-                  className={cn(
-                    "num rounded px-2 py-1 text-2xs transition-colors",
-                    option.days === windowDays
-                      ? "bg-muted font-semibold text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {option.short}
-                </button>
-              ))}
-            </div>
-          <RefreshButton
-            refreshing={busy}
-            onRefresh={refreshActiveTab}
-          />
-          </div>
-        }
-        toolbar={
-          <div
-            role="tablist"
-            aria-label="Activity views"
-            className="flex gap-0.5 border-b border-border-soft"
-          >
-            {ACTIVITY_TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                id={`activity-tab-${item.id}`}
-                aria-selected={item.id === tab}
-                // Only the showing tab names a panel. The others have no panel
-                // in the document — that is what stops the log's query running
-                // — and an aria-controls pointing at an id that is not there
-                // is a dangling reference, not a hint.
-                aria-controls={item.id === tab ? `activity-panel-${item.id}` : undefined}
-                className={cn(
-                  "-mb-px border-b-2 border-transparent px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground",
-                  item.id === tab && "border-primary font-semibold text-foreground"
-                )}
-                onClick={() => setTab(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        }
+              {option.short}
+            </button>
+          ))}
+        </div>
+        <RefreshButton refreshing={busy} onRefresh={refreshActiveTab} size="icon-xs" />
+      </PaneHeaderActions>
+      {/* Only the showing tab names a panel (PillTabs' idPrefix pairing). The
+          others have no panel in the document — that is what stops the log's
+          query running — and an aria-controls pointing at an id that is not
+          there is a dangling reference, not a hint. */}
+      <PillTabs
+        items={ACTIVITY_TABS}
+        value={tab}
+        onChange={setTab}
+        aria-label="Activity views"
+        idPrefix="activity"
       />
 
       {tab === "logs" ? (

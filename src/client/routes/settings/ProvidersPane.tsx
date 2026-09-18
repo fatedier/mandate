@@ -182,25 +182,29 @@ export function ProvidersPane() {
     // gap-2, not gap-4: collapsed providers are a list, and the wider gap made
     // three 56px rows read as three unrelated cards. Each still keeps its own
     // border, because that border is what turns amber when the card is dirty.
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-        <p className="text-xs text-chrome">Each provider saves on its own.</p>
-        <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
-          <Plus className="h-3.5 w-3.5" />
+    <div className="flex flex-col gap-1.5">
+      {/* The pane's own header line, on the list language: title · meta ·
+          a 28px control. Each provider below is a row that opens in place. */}
+      <div data-slot="section-header" className="flex h-8 items-center gap-2">
+        <span data-slot="section-title" className="text-xs font-semibold text-foreground">Providers</span>
+        <span data-slot="section-meta" className="min-w-0 truncate text-2xs text-faint">each saves on its own</span>
+        <span className="flex-1" />
+        <Button variant="outline" size="xs" onClick={() => setSetupOpen(true)}>
+          <Plus className="size-3.5" />
           <span>Add provider</span>
         </Button>
       </div>
 
       {cards.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border-soft px-4 py-10 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border-soft px-4 py-10 text-center">
           <div>
             <p className="text-sm text-muted-foreground">No providers configured.</p>
             <p className="mt-1 text-xs text-chrome">
               Agents can&apos;t run until at least one model is reachable.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
+          <Button variant="outline" size="xs" onClick={() => setSetupOpen(true)}>
+            <Plus className="size-3.5" />
             <span>Add provider</span>
           </Button>
         </div>
@@ -442,7 +446,7 @@ function ProviderSetupDialog({
               // content vertically, so the cards with a one-line description
               // sat 11px lower than their neighbours and no row of titles
               // lined up.
-              className="flex min-h-24 flex-col items-start rounded-md border border-border-soft bg-card p-4 text-left transition hover:border-ring hover:bg-accent/50 focus:outline-none focus:ring-[3px] focus:ring-ring/20"
+              className="flex min-h-24 flex-col items-start rounded-md border border-border-soft bg-panel p-4 text-left transition hover:border-ring hover:bg-sel focus:outline-none focus:ring-[3px] focus:ring-ring/20"
               onClick={() => onSelect(template.id)}
             >
               <div className="text-sm font-semibold text-foreground">{template.title}</div>

@@ -32,7 +32,7 @@ describe("copyTextToClipboard", () => {
         expect(await copyTextToClipboard("fallback")).toBe(true);
       })
     );
-    expect(copied).toBe("fallback");
+    expect(copied as string | null).toBe("fallback");
     expect(document.getElementsByTagName("textarea").length).toBe(0);
   });
 

@@ -57,7 +57,7 @@ export function SettingRow({
     <div
       id={anchor ? `setting-${anchor}` : undefined}
       data-setting-anchor={anchor}
-      className="scroll-mt-4 px-4 py-3"
+      className="scroll-mt-4 px-3.5 py-3"
     >
       <div
         className={cn(
@@ -92,7 +92,7 @@ export function SettingSubGroup({
   children: ReactNode;
 }) {
   return (
-    <div className="px-4 py-3">
+    <div className="px-3.5 py-3">
       <div className="flex min-h-7 items-center justify-between gap-2">
         <span className="label-micro text-chrome">{label}</span>
         {action}

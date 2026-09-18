@@ -24,18 +24,24 @@ import { WorkItemMessageBlock } from "./WorkItemMessageBlock";
 import { FeatureEventLine } from "./FeatureEventLine";
 import { FeatureMessageLine } from "./FeatureMessageLine";
 import { ChatProvenanceLine } from "./ChatProvenanceLine";
-import { provenanceForWake, type ChatProvenance } from "./chatProvenance";
+import {
+  provenanceForSystemMessage,
+  provenanceForWake,
+  type ChatProvenance
+} from "./chatProvenance";
+import { describeFold, foldSystemRuns, type SystemClassification } from "./fold-system-runs";
+import { FoldedSystemRun } from "./FoldedSystemRun";
 import type { ToolResultSpec } from "./ToolCallCard";
 import type { VoiceTranscriptLine } from "@/store/voice";
 import { formatUserFacingError } from "@/lib/error-message";
-import { formatCalendarDate } from "@/lib/format";
+import { formatCalendarDate, formatClockTime } from "@/lib/format";
 
 function EphemeralAssistantBubble({ text }: { text: string }) {
   return (
     <div className="flex flex-col gap-1 opacity-70">
       <VoiceMarkerHeader ephemeral />
       {text && (
-        <div className="text-base leading-[1.5] whitespace-pre-wrap break-words">{text}</div>
+        <div className="text-sm leading-[1.6] whitespace-pre-wrap break-words">{text}</div>
       )}
     </div>
   );
@@ -49,7 +55,7 @@ function AssistantReplyGroup({
   children: ReactNode;
 }) {
   return (
-    <div className="my-1 flex flex-col gap-1 border-l border-border/70 pl-2">
+    <div className="flex flex-col gap-1">
       <ChatProvenanceLine provenance={provenance} grouped />
       {children}
     </div>
@@ -65,7 +71,7 @@ function ChatDateSeparator({ timestamp, label }: { timestamp: string; label: str
     // presentational, so a screen reader would announce the rule and drop the
     // date. The `<time>` stays for the machine-readable `datetime`.
     <div
-      className="my-2 flex items-center gap-2 text-2xs text-muted-foreground"
+      className="my-1 flex items-center gap-3 text-2xs text-faint"
       role="separator"
       aria-label={label}
     >
@@ -78,13 +84,47 @@ function ChatDateSeparator({ timestamp, label }: { timestamp: string; label: str
   );
 }
 
+/** An assistant reply with no text and no tool calls. `AssistantMessage`
+ *  renders such a message as nothing (canvas references come from tool
+ *  results, so no tool calls means none of those either); whether the ROW is
+ *  visible then depends solely on whether its wake carries provenance. */
+function isEmptyAssistantReply(m: AgentMessage): boolean {
+  return (
+    m.role === "assistant" &&
+    m.content.type === "assistant" &&
+    !m.content.text?.trim() &&
+    !(m.content.toolCalls?.length)
+  );
+}
+
+/** The wake reason for a message, falling back to the thread's per-wake map
+ *  when the message itself does not carry one. */
+function wakeReasonOf(m: AgentMessage, wakeReasonsById: ThreadState["wakeReasonsById"]) {
+  return m.wakeReason ?? (m.wakeId ? (wakeReasonsById.get(m.wakeId) ?? null) : null);
+}
+
 /** Rows the switch below deliberately renders as nothing. A date separator must
  *  never be anchored to one: `ensureSystemMessage` seeds every thread with a
  *  hidden `role: "system"` row at seq 0, and if that row opened the day, the
  *  heading would sit over an empty stretch of transcript and the day's first
- *  VISIBLE message would then be judged as "same day, no separator needed". */
-function rendersNothing(item: { kind: "msg"; message: AgentMessage } | { kind: "pending" }) {
-  return item.kind === "msg" && item.message.role === "system";
+ *  VISIBLE message would then be judged as "same day, no separator needed".
+ *
+ *  An empty assistant reply whose wake has no provenance is the other such row:
+ *  `AssistantMessage` returns null for it and there is no provenance line to
+ *  stand in, so nothing reaches the DOM. (With provenance it IS a visible row —
+ *  a heartbeat no-op — and `classifySystem` treats it as system.) */
+function rendersNothing(
+  item: { kind: "msg"; message: AgentMessage } | { kind: "pending" },
+  wakeReasonsById: ThreadState["wakeReasonsById"]
+) {
+  if (item.kind !== "msg") return false;
+  const m = item.message;
+  if (m.role === "system") return true;
+  return (
+    isEmptyAssistantReply(m) &&
+    provenanceForWake(wakeReasonOf(m, wakeReasonsById), { wakeId: m.wakeId, createdAt: m.createdAt }) ===
+      null
+  );
 }
 
 interface ChatMessageListProps {
@@ -162,6 +202,9 @@ export function ChatMessageList({
   const [scrolledAwayFromBottom, setScrolledAwayFromBottom] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(() => new Set());
+  // Per run, per session: which folded system runs are showing their rows.
+  // Not persisted, reset with the thread.
+  const [expandedFolds, setExpandedFolds] = useState<Set<string>>(() => new Set());
   const streamingText = useThrottledValue(
     thread.streamingAssistant?.totalText ?? "",
     STREAMING_RENDER_INTERVAL_MS
@@ -220,28 +263,66 @@ export function ChatMessageList({
     () => (renderItems.length > renderWindow ? renderItems.slice(-renderWindow) : renderItems),
     [renderItems, renderWindow]
   );
+  // What counts as a "system" row for folding: user-role rows that are feature
+  // events or carry system provenance (context snapshots, watch, alarm, …), and
+  // assistant replies that said nothing but whose wake shows provenance (a
+  // heartbeat no-op). Anything the user or the model actually said breaks a run.
+  type RenderItem = (typeof windowedItems)[number];
+  const classifySystem = useCallback((item: RenderItem): SystemClassification | null => {
+    if (item.kind !== "msg") return null;
+    const m = item.message;
+    if (m.role === "user") {
+      if (m.content.type === "feature_event") return { label: "FEATURE", createdAt: m.createdAt };
+      const provenance = provenanceForSystemMessage(m);
+      return provenance ? { label: provenance.label, createdAt: m.createdAt } : null;
+    }
+    if (isEmptyAssistantReply(m)) {
+      const provenance = provenanceForWake(wakeReasonOf(m, thread.wakeReasonsById), {
+        wakeId: m.wakeId,
+        createdAt: m.createdAt
+      });
+      return provenance ? { label: provenance.label, createdAt: m.createdAt } : null;
+    }
+    return null;
+  }, [thread.wakeReasonsById]);
+
+  const foldedItems = useMemo(
+    () =>
+      foldSystemRuns(
+        windowedItems,
+        classifySystem,
+        (item) => (item.kind === "pending" ? item.pending.localId : item.message.id)
+      ),
+    [windowedItems, classifySystem]
+  );
+
+  type FoldedTranscriptEntry = (typeof foldedItems)[number];
   const datedWindowedItems = useMemo(() => {
     const dated: Array<
-      | (typeof windowedItems)[number]
+      | FoldedTranscriptEntry
       | { kind: "date"; key: string; timestamp: string; label: string }
     > = [];
     let previousDate = "";
-    for (const item of windowedItems) {
-      if (rendersNothing(item)) {
-        dated.push(item);
+    for (const entry of foldedItems) {
+      if (entry.kind === "item" && rendersNothing(entry.item, thread.wakeReasonsById)) {
+        dated.push(entry);
         continue;
       }
-      const timestamp = item.kind === "pending" ? item.pending.createdAt : item.message.createdAt;
+      const timestamp = entry.kind === "fold"
+        ? (entry.start ?? "")
+        : entry.item.kind === "pending" ? entry.item.pending.createdAt : entry.item.message.createdAt;
       const label = formatCalendarDate(timestamp);
       if (label && label !== previousDate) {
-        const key = item.kind === "pending" ? item.pending.localId : item.message.id;
+        const key = entry.kind === "fold"
+          ? entry.key
+          : entry.item.kind === "pending" ? entry.item.pending.localId : entry.item.message.id;
         dated.push({ kind: "date", key, timestamp, label });
         previousDate = label;
       }
-      dated.push(item);
+      dated.push(entry);
     }
     return dated;
-  }, [windowedItems]);
+  }, [foldedItems, thread.wakeReasonsById]);
   const isWindowed = windowedItems.length < renderItems.length;
 
   useEffect(() => {
@@ -285,6 +366,7 @@ export function ChatMessageList({
 
   useEffect(() => {
     setExpandedToolIds(new Set());
+    setExpandedFolds(new Set());
     hasInitialScrollRef.current = false;
     lastMessageCountRef.current = 0;
     lastScrollHeightRef.current = 0;
@@ -360,10 +442,15 @@ export function ChatMessageList({
     // never dragged back down.
     const contentObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(keepPinnedToBottom);
+    //
+    // The rows live inside the centring column, not directly under the
+    // scroller, so that is the element whose children are watched; the
+    // fallback to `el` only matters if the column is ever removed.
+    const column = el.querySelector('[data-slot="transcript-column"]') ?? el;
     const observeRows = () => {
       if (!contentObserver) return;
       contentObserver.disconnect();
-      for (const row of el.children) contentObserver.observe(row);
+      for (const row of column.children) contentObserver.observe(row);
     };
     observeRows();
     // Rows come and go as messages arrive and as the render window releases;
@@ -371,7 +458,7 @@ export function ChatMessageList({
     // that growth is already caught by that row's own box.
     const rowsChanged =
       typeof MutationObserver === "undefined" ? null : new MutationObserver(observeRows);
-    rowsChanged?.observe(el, { childList: true });
+    rowsChanged?.observe(column, { childList: true });
 
     const vv = window.visualViewport;
     vv?.addEventListener("resize", keepPinnedToBottom);
@@ -457,6 +544,143 @@ export function ChatMessageList({
 
   const renderedWakeProvenanceIds = new Set<string>();
 
+  /** One transcript row. Declared here so a fold can render its items through
+   *  exactly the same path a top-level row takes: an expanded fold marks its
+   *  wake ids in `renderedWakeProvenanceIds`, a collapsed one does not. */
+  function renderTranscriptItem(item: RenderItem): ReactNode {
+    if (item.kind === "pending") {
+      return (
+        <UserMessage
+          key={item.pending.localId}
+          text={item.pending.content}
+          attachments={item.pending.attachments ?? []}
+          status={item.pending.status}
+          error={item.pending.error}
+          createdAt={item.pending.createdAt}
+          onRetry={
+            item.pending.status === "failed"
+              ? () => onRetryFailed(item.pending.localId)
+              : undefined
+          }
+        />
+      );
+    }
+    const m = item.message;
+    // Compression summaries are stored with role:"user" (not "system") so the LLM
+    // never sees a mid-conversation system message. Render them with the same
+    // visual treatment as other system events though, since they're not user input.
+    if (m.role === "user" && m.source === "compression") {
+      return m.content.type === "summary" ? (
+        <CompressionSummaryMessage key={m.id} message={m} />
+      ) : (
+        <SystemMessage key={m.id} message={m} />
+      );
+    }
+    if (m.role === "user" && m.source === "watch") {
+      return <SystemMessage key={m.id} message={m} />;
+    }
+    if (m.role === "user" && (m.source === "alarm" || m.source === "scheduled")) {
+      return <SystemMessage key={m.id} message={m} />;
+    }
+    if (m.role === "user" && m.source === "analyzer-event") {
+      return <SystemMessage key={m.id} message={m} />;
+    }
+    if (m.role === "user" && (m.source === "runtime-context" || m.source === "restart-recovery")) {
+      return <SystemMessage key={m.id} message={m} />;
+    }
+    if (m.role === "user" && m.source === "feature-message") {
+      return <FeatureMessageLine key={m.id} message={m} />;
+    }
+    if (m.role === "user" && m.content.type === "feature_event") {
+      return <FeatureEventLine key={m.id} content={m.content} createdAt={m.createdAt} />;
+    }
+    if (m.role === "user") {
+      // Work item reference injected by the server — render as a compact block.
+      if (m.content.type === "text") {
+        const workItemRef = m.content.metadata?.workItemRef as { itemId: string } | undefined;
+        if (workItemRef?.itemId && onOpenWorkItem) {
+          const text = m.content.text;
+          const attachments = m.content.attachments ?? [];
+          if (!isWorkItemReferenceOnlyText(text) || attachments.length > 0) {
+            return (
+              <Fragment key={m.id}>
+                <WorkItemMessageBlock
+                  itemId={workItemRef.itemId}
+                  fallbackTitle={extractWorkItemTitle(text)}
+                  fallbackBody={extractWorkItemBody(text)}
+                  onOpen={onOpenWorkItem}
+                />
+                <UserMessage
+                  text={text}
+                  attachments={attachments}
+                  status="persisted"
+                  createdAt={m.createdAt}
+                  voiceMarker={m.source === "voice"}
+                />
+              </Fragment>
+            );
+          }
+          return (
+            <WorkItemMessageBlock
+              key={m.id}
+              itemId={workItemRef.itemId}
+              fallbackTitle={extractWorkItemTitle(text)}
+              fallbackBody={extractWorkItemBody(text)}
+              onOpen={onOpenWorkItem}
+            />
+          );
+        }
+      }
+      const text = m.content.type === "text" ? m.content.text : "";
+      const attachments = m.content.type === "text" ? (m.content.attachments ?? []) : [];
+      return (
+        <UserMessage
+          key={m.id}
+          text={text}
+          attachments={attachments}
+          status="persisted"
+          createdAt={m.createdAt}
+          voiceMarker={m.source === "voice"}
+        />
+      );
+    }
+    if (m.role === "assistant") {
+      const wakeMetadata = m.wakeMetadata ??
+        (m.wakeId ? (thread.wakeMetadataById.get(m.wakeId) ?? null) : null);
+      const provenance = provenanceForWake(
+        m.wakeReason ?? (m.wakeId ? (thread.wakeReasonsById.get(m.wakeId) ?? null) : null),
+        { wakeId: m.wakeId, createdAt: m.createdAt, metadata: wakeMetadata }
+      );
+      const showProvenance = provenance && (!m.wakeId || !renderedWakeProvenanceIds.has(m.wakeId));
+      if (showProvenance && m.wakeId) renderedWakeProvenanceIds.add(m.wakeId);
+      const assistant = (
+        <AssistantMessage
+          message={m}
+          toolResultsByCallId={toolResultsByCallId}
+          activeToolCallId={thread.wakePhase.activeToolCallId ?? null}
+          expandedToolIds={expandedToolIds}
+          onToolExpandedChange={handleToolExpandedChange}
+          voiceMarker={m.source === "voice"}
+          // The provenance row above this reply already carries the same
+          // clock (it is built from this message's createdAt); a second copy
+          // one line down was the same second printed twice.
+          hideClock={Boolean(showProvenance)}
+        />
+      );
+      return showProvenance ? (
+        <AssistantReplyGroup key={m.id} provenance={provenance}>
+          {assistant}
+        </AssistantReplyGroup>
+      ) : (
+        <Fragment key={m.id}>{assistant}</Fragment>
+      );
+    }
+    if (m.role === "system") {
+      return null;
+    }
+    return null;
+  }
+
   return (
     /* Container context for the transcript's narrow-width rules. Deliberately
        on this wrapper and not on the scroller below: `@container` implies
@@ -492,250 +716,146 @@ export function ChatMessageList({
           does: measure scrollHeight before and after and adjust scrollTop. */}
       <div
         ref={scrollRef}
-        className="h-full min-w-0 overflow-y-auto overflow-x-hidden [overflow-anchor:none] scrollbar-thin p-3 flex flex-col gap-2"
+        className="h-full min-w-0 overflow-y-auto overflow-x-hidden [overflow-anchor:none] scrollbar-thin px-7 py-4 flex flex-col gap-4"
         onScroll={handleScroll}
       >
-        {thread.hasMoreOlder && (
-          <div className="flex justify-center mb-1">
-            <Button variant="ghost" size="sm" onClick={handleLoadOlder} disabled={loadingOlder}>
-              <ArrowUp className="h-3 w-3" />
-              {loadingOlder ? "Loading…" : "Load 50 older"}
-            </Button>
-          </div>
-        )}
-
-        {renderItems.length === 0 && hiddenQueuedCount === 0 && !thread.streamingAssistant && (
-          <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-3">
-            <p className="font-medium text-foreground">No messages yet</p>
-            {showEmptyHelp && (
-              <>
-                <p className="mt-2 text-xs">
-                  The agent has access to bash, file editing, and your tmux panes.
-                </p>
-                <p className="mt-2 text-xs italic">
-                  Try:{" "}
-                  <span className="font-mono not-italic">
-                    "what's running in this feature right now?"
-                  </span>
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {datedWindowedItems.map((item) => {
-          if (item.kind === "date") {
-            return (
-              <ChatDateSeparator
-                key={`date-${item.key}`}
-                timestamp={item.timestamp}
-                label={item.label}
-              />
-            );
-          }
-          if (item.kind === "pending") {
-            return (
-              <UserMessage
-                key={item.pending.localId}
-                text={item.pending.content}
-                attachments={item.pending.attachments ?? []}
-                status={item.pending.status}
-                error={item.pending.error}
-                createdAt={item.pending.createdAt}
-                onRetry={
-                  item.pending.status === "failed"
-                    ? () => onRetryFailed(item.pending.localId)
-                    : undefined
-                }
-              />
-            );
-          }
-          const m = item.message;
-          // Compression summaries are stored with role:"user" (not "system") so the LLM
-          // never sees a mid-conversation system message. Render them with the same
-          // visual treatment as other system events though, since they're not user input.
-          if (m.role === "user" && m.source === "compression") {
-            return m.content.type === "summary" ? (
-              <CompressionSummaryMessage key={m.id} message={m} />
-            ) : (
-              <SystemMessage key={m.id} message={m} />
-            );
-          }
-          if (m.role === "user" && m.source === "watch") {
-            return <SystemMessage key={m.id} message={m} />;
-          }
-          if (m.role === "user" && (m.source === "alarm" || m.source === "scheduled")) {
-            return <SystemMessage key={m.id} message={m} />;
-          }
-          if (m.role === "user" && m.source === "analyzer-event") {
-            return <SystemMessage key={m.id} message={m} />;
-          }
-          if (m.role === "user" && (m.source === "runtime-context" || m.source === "restart-recovery")) {
-            return <SystemMessage key={m.id} message={m} />;
-          }
-          if (m.role === "user" && m.source === "feature-message") {
-            return <FeatureMessageLine key={m.id} message={m} />;
-          }
-          if (m.role === "user" && m.content.type === "feature_event") {
-            return <FeatureEventLine key={m.id} content={m.content} createdAt={m.createdAt} />;
-          }
-          if (m.role === "user") {
-            // Work item reference injected by the server — render as a compact block.
-            if (m.content.type === "text") {
-              const workItemRef = m.content.metadata?.workItemRef as { itemId: string } | undefined;
-              if (workItemRef?.itemId && onOpenWorkItem) {
-                const text = m.content.text;
-                const attachments = m.content.attachments ?? [];
-                if (!isWorkItemReferenceOnlyText(text) || attachments.length > 0) {
-                  return (
-                    <Fragment key={m.id}>
-                      <WorkItemMessageBlock
-                        itemId={workItemRef.itemId}
-                        fallbackTitle={extractWorkItemTitle(text)}
-                        fallbackBody={extractWorkItemBody(text)}
-                        onOpen={onOpenWorkItem}
-                      />
-                      <UserMessage
-                        text={text}
-                        attachments={attachments}
-                        status="persisted"
-                        createdAt={m.createdAt}
-                        voiceMarker={m.source === "voice"}
-                      />
-                    </Fragment>
-                  );
-                }
-                return (
-                  <WorkItemMessageBlock
-                    key={m.id}
-                    itemId={workItemRef.itemId}
-                    fallbackTitle={extractWorkItemTitle(text)}
-                    fallbackBody={extractWorkItemBody(text)}
-                    onOpen={onOpenWorkItem}
-                  />
-                );
-              }
-            }
-            const text = m.content.type === "text" ? m.content.text : "";
-            const attachments = m.content.type === "text" ? (m.content.attachments ?? []) : [];
-            return (
-              <UserMessage
-                key={m.id}
-                text={text}
-                attachments={attachments}
-                status="persisted"
-                createdAt={m.createdAt}
-                voiceMarker={m.source === "voice"}
-              />
-            );
-          }
-          if (m.role === "assistant") {
-            const assistant = (
-              <AssistantMessage
-                message={m}
-                toolResultsByCallId={toolResultsByCallId}
-                activeToolCallId={thread.wakePhase.activeToolCallId ?? null}
-                expandedToolIds={expandedToolIds}
-                onToolExpandedChange={handleToolExpandedChange}
-                voiceMarker={m.source === "voice"}
-              />
-            );
-            const wakeMetadata = m.wakeMetadata ??
-              (m.wakeId ? (thread.wakeMetadataById.get(m.wakeId) ?? null) : null);
-            const provenance = provenanceForWake(
-              m.wakeReason ?? (m.wakeId ? (thread.wakeReasonsById.get(m.wakeId) ?? null) : null),
-              { wakeId: m.wakeId, createdAt: m.createdAt, metadata: wakeMetadata }
-            );
-            const showProvenance = provenance && (!m.wakeId || !renderedWakeProvenanceIds.has(m.wakeId));
-            if (showProvenance && m.wakeId) renderedWakeProvenanceIds.add(m.wakeId);
-            return showProvenance ? (
-              <AssistantReplyGroup key={m.id} provenance={provenance}>
-                {assistant}
-              </AssistantReplyGroup>
-            ) : (
-              <Fragment key={m.id}>{assistant}</Fragment>
-            );
-          }
-          if (m.role === "system") {
-            return null;
-          }
-          return null;
-        })}
-
-        {thread.streamingAssistant
-          ? (() => {
-              const wakeId = thread.streamingAssistant.wakeId;
-              const provenance = renderedWakeProvenanceIds.has(wakeId)
-                ? null
-                : provenanceForWake(thread.wakeReasonsById.get(wakeId) ?? null, {
-                    wakeId,
-                    metadata: thread.wakeMetadataById.get(wakeId) ?? null
-                  });
-              if (provenance) renderedWakeProvenanceIds.add(wakeId);
-              const streaming = <StreamingAssistantMessage text={streamingText} />;
-              return provenance ? (
-                <AssistantReplyGroup key={`streaming-${wakeId}`} provenance={provenance}>
-                  {streaming}
-                </AssistantReplyGroup>
-              ) : (
-                <Fragment key={`streaming-${wakeId}`}>{streaming}</Fragment>
-              );
-            })()
-          : null}
-
-        {inProgressLines?.user && (
-          <UserMessage
-            key="voice-in-progress-user"
-            text={inProgressLines.user.text}
-            status="persisted"
-            voiceMarker
-            ephemeral
-          />
-        )}
-        {inProgressLines?.assistant && (
-          <EphemeralAssistantBubble
-            key="voice-in-progress-assistant"
-            text={inProgressLines.assistant.text}
-          />
-        )}
-
-        <WakePhaseIndicator
-          phase={thread.wakePhase.phase}
-          toolName={thread.wakePhase.activeToolName}
-        />
-        <CompressionPhaseIndicator active={!!thread.compressionPhase} />
-
-        {thread.lastWakeError && (
-          <div className="mx-3 my-2 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-destructive">
-                {thread.lastWakeError.status === "limit_reached"
-                  ? "Wake hit step limit"
-                  : "Agent wake failed"}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground break-words whitespace-pre-wrap">
-                {formatUserFacingError(thread.lastWakeError.message)}
-              </div>
+        <div data-slot="transcript-column" className="mx-auto flex w-full max-w-[880px] flex-col gap-4">
+          {thread.hasMoreOlder && (
+            <div className="flex justify-center mb-1">
+              <Button variant="ghost" size="sm" onClick={handleLoadOlder} disabled={loadingOlder}>
+                <ArrowUp className="h-3 w-3" />
+                {loadingOlder ? "Loading…" : "Load 50 older"}
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Dismiss error"
-              className="shrink-0"
-              onClick={onDismissError}
-            >
-              <X />
-            </Button>
-          </div>
-        )}
+          )}
+
+          {renderItems.length === 0 && hiddenQueuedCount === 0 && !thread.streamingAssistant && (
+            <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-3">
+              <p className="font-medium text-foreground">No messages yet</p>
+              {showEmptyHelp && (
+                <>
+                  <p className="mt-2 text-xs">
+                    The agent has access to bash, file editing, and your tmux panes.
+                  </p>
+                  <p className="mt-2 text-xs italic">
+                    Try:{" "}
+                    <span className="font-mono not-italic">
+                      "what's running in this feature right now?"
+                    </span>
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {datedWindowedItems.map((entry) => {
+            if (entry.kind === "date") {
+              return (
+                <ChatDateSeparator
+                  key={`date-${entry.key}`}
+                  timestamp={entry.timestamp}
+                  label={entry.label}
+                />
+              );
+            }
+            if (entry.kind === "fold") {
+              const expanded = expandedFolds.has(entry.key);
+              const toggle = () =>
+                setExpandedFolds((current) => {
+                  const next = new Set(current);
+                  if (next.has(entry.key)) next.delete(entry.key);
+                  else next.add(entry.key);
+                  return next;
+                });
+              return (
+                <Fragment key={`fold-${entry.key}`}>
+                  <FoldedSystemRun
+                    summary={describeFold(entry.counts, entry.start, entry.end, formatClockTime)}
+                    expanded={expanded}
+                    onToggle={toggle}
+                  />
+                  {expanded && entry.items.map((item) => renderTranscriptItem(item))}
+                </Fragment>
+              );
+            }
+            return renderTranscriptItem(entry.item);
+          })}
+
+          {thread.streamingAssistant
+            ? (() => {
+                const wakeId = thread.streamingAssistant.wakeId;
+                const provenance = renderedWakeProvenanceIds.has(wakeId)
+                  ? null
+                  : provenanceForWake(thread.wakeReasonsById.get(wakeId) ?? null, {
+                      wakeId,
+                      metadata: thread.wakeMetadataById.get(wakeId) ?? null
+                    });
+                if (provenance) renderedWakeProvenanceIds.add(wakeId);
+                const streaming = <StreamingAssistantMessage text={streamingText} />;
+                return provenance ? (
+                  <AssistantReplyGroup key={`streaming-${wakeId}`} provenance={provenance}>
+                    {streaming}
+                  </AssistantReplyGroup>
+                ) : (
+                  <Fragment key={`streaming-${wakeId}`}>{streaming}</Fragment>
+                );
+              })()
+            : null}
+
+          {inProgressLines?.user && (
+            <UserMessage
+              key="voice-in-progress-user"
+              text={inProgressLines.user.text}
+              status="persisted"
+              voiceMarker
+              ephemeral
+            />
+          )}
+          {inProgressLines?.assistant && (
+            <EphemeralAssistantBubble
+              key="voice-in-progress-assistant"
+              text={inProgressLines.assistant.text}
+            />
+          )}
+
+          <WakePhaseIndicator
+            phase={thread.wakePhase.phase}
+            toolName={thread.wakePhase.activeToolName}
+          />
+          <CompressionPhaseIndicator active={!!thread.compressionPhase} />
+
+          {thread.lastWakeError && (
+            <div className="mx-3 my-2 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-destructive">
+                  {thread.lastWakeError.status === "limit_reached"
+                    ? "Wake hit step limit"
+                    : "Agent wake failed"}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground break-words whitespace-pre-wrap">
+                  {formatUserFacingError(thread.lastWakeError.message)}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Dismiss error"
+                className="shrink-0"
+                onClick={onDismissError}
+              >
+                <X />
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(newCount > 0 || scrolledAwayFromBottom) && (
         <Button
           variant="outline"
           size="icon"
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 h-9 w-9 rounded-full shadow-md bg-card/95 backdrop-blur"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 h-9 w-9 rounded-full shadow-md bg-panel"
           aria-label="Scroll to latest message"
           onClick={scrollToBottom}
         >

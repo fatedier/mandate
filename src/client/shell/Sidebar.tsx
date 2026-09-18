@@ -14,6 +14,7 @@ import {
   SIDEBAR_WIDTH_DEFAULT
 } from "@/store/ui";
 import { cn } from "@/lib/utils";
+import { TitlebarStrip } from "@/shell/TitlebarStrip";
 import { getSectionUrl, isInSection } from "@/lib/section-memory";
 import { SETTINGS_NAV_GROUPS, sectionFromParam } from "@/routes/settings/settings-nav";
 
@@ -110,11 +111,11 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "relative flex h-full flex-col bg-panel py-2",
+        "relative flex h-full flex-col bg-panel border-r border-border-soft pb-2.5",
         // The transition is for the collapse toggle. During a drag it has to be
         // off, or the edge trails the pointer by 200ms and the drag feels stuck.
         !dragging && "transition-[width] duration-200",
-        collapsed ? "w-12 items-center" : "px-2"
+        collapsed ? "w-12 items-center" : "px-2.5"
       )}
       style={collapsed ? undefined : { width: `${sidebarWidth}px` }}
       data-collapsed={collapsed ? "true" : "false"}
@@ -139,43 +140,65 @@ export function Sidebar() {
               stripe on the edge it borders, so nothing protrudes into the
               content column. `ml-auto` puts the stripe on the right, mirroring
               the chat's, which sits on its left. */}
-          <div className="ml-auto w-px bg-transparent transition-colors group-hover:bg-primary/70 group-active:bg-primary" />
+          <div className="ml-auto w-px bg-transparent transition-colors group-hover:bg-border group-active:bg-border" />
         </div>
       )}
+      {/* Desktop shell only: the traffic lights' strip. The header band below
+          is then the same in both shells. */}
+      <TitlebarStrip />
       <div
-        className={cn(
-          "flex items-center h-10",
-          collapsed ? "justify-center" : "justify-between px-2"
-        )}
+        data-slot="sidebar-header"
+        data-tauri-drag-region
+        className={cn("flex h-13 shrink-0 items-center", collapsed ? "justify-center" : "gap-2 px-1")}
       >
+        {/* Collapsed rail: nothing else occupies the band, so the expand
+            toggle sits in it, level with the pane headers' titles. */}
+        {collapsed && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-chrome hover:text-foreground"
+            onClick={() => setCollapsed(false)}
+            aria-label="Expand sidebar"
+          >
+            <PanelLeft className="size-4" />
+          </Button>
+        )}
         {!collapsed && (
           <Link
             to="/projects"
-            className="flex min-w-0 items-center gap-2 text-base font-bold text-foreground hover:text-primary transition-colors"
+            data-slot="brand"
+            className="flex min-w-0 items-center gap-2 text-xs font-medium text-chrome transition-colors hover:text-foreground"
           >
-            <img src={brandLogoSrc} alt="" className="h-7 w-7 shrink-0" />
+            <img src={brandLogoSrc} alt="" className="h-4 w-4 shrink-0" />
             <span className="truncate">Mandate</span>
           </Link>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-        </Button>
+        {!collapsed && (
+          <>
+            <span className="flex-1" />
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="text-chrome hover:text-foreground"
+              onClick={() => setCollapsed(true)}
+              aria-label="Collapse sidebar"
+            >
+              <PanelLeftClose className="size-4" />
+            </Button>
+          </>
+        )}
       </div>
 
-      <TooltipProvider delayDuration={150}>
-        {/* The nav is a scroll container, and the attention badge overhangs
-            its first link by 2px on top and right (absolute -top/right-0.5).
+      <TooltipProvider>
+        {/* The nav is a scroll container, and the collapsed attention badge
+            overhangs its link by 2px on top and right (absolute -top/right-0.5).
             Anything past the padding box gets clipped (or, horizontally,
             becomes a stub scrollbar), so the badge needs headroom inside it:
-            w-full (not the shrink-wrapped 40px) absorbs the right overhang,
-            and mt-1.5 + pt-0.5 (same 8px total as the old mt-2) the top. */}
-        <nav className={cn("flex flex-col mt-1.5 pt-0.5 flex-1 min-h-0 overflow-y-auto w-full", collapsed ? "gap-1 items-center" : "gap-0.5")}>
+            w-full (not the shrink-wrapped rail width) absorbs the right
+            overhang, and the collapsed rail's pt-1 keeps the first link's badge
+            off the nav's top edge. */}
+        <nav className={cn("flex flex-col flex-1 min-h-0 overflow-y-auto w-full", collapsed ? "gap-1 items-center pt-1" : "gap-px")}>
           {/* No role="group" on the destination clusters. Both names were
               invisible, so the split was a fact only a screen reader got — and
               "System" is a word we just decided says nothing that `Activity`
@@ -239,7 +262,7 @@ function SettingsSidebarNav({
     <Link
       to="/projects"
       className={cn(
-        "flex items-center gap-2 rounded-md text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
+        "flex items-center gap-2 rounded-sm text-xs text-muted-foreground transition-colors hover:bg-sel hover:text-foreground",
         collapsed ? "h-9 w-9 justify-center" : "px-2.5 py-1.5"
       )}
     >
@@ -271,8 +294,8 @@ function SettingsSidebarNav({
                 to={`/settings?tab=${item.id}`}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-2.5 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground",
-                  active && "bg-muted font-medium text-foreground"
+                  "rounded-sm px-2.5 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-sel hover:text-foreground",
+                  active && "bg-sel font-medium text-foreground"
                 )}
               >
                 {item.label}

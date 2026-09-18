@@ -25,8 +25,8 @@ test("the first entry of a list scores 1 / (k + 1)", () => {
 test("an entry both paths found beats one only a single path ranked higher", () => {
   // `both` is 3rd and 4th; `solo` is 1st in fts and absent from vector.
   const lists = [
-    { path: "fts", ids: ["solo", "x", "both"] },
-    { path: "vector", ids: ["y", "z", "w", "both"] }
+    { path: "fts" as const, ids: ["solo", "x", "both"] },
+    { path: "vector" as const, ids: ["y", "z", "w", "both"] }
   ];
   const fused = fuseByRank(lists);
   expect(fused.get("both")!.score).toBeGreaterThan(fused.get("solo")!.score);

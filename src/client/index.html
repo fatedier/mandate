@@ -5,18 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Mandate</title>
     <link rel="icon" type="image/svg+xml" href="/brand/mandate-logo-panes.svg" />
+    <!-- Installable as a home-screen app (PWA): the manifest names it, the
+         icons draw it, and theme-color paints the system bars. On iOS the
+         Apple tags do the same job the manifest does on Android. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e1e21" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mandate" />
     <script>
-      // Pre-paint theme so the page doesn't flash dark before React hydrates.
+      // Pre-paint theme so the page doesn't flash before React hydrates.
       // Reads the same Zustand-persisted "ap.ui" blob that useUIStore writes
-      // to (shape: { state: { theme, ... }, version }). Default "dark" if
-      // nothing is stored / parse fails / theme isn't valid.
-      try {
-        var raw = localStorage.getItem("ap.ui");
-        var theme = raw && JSON.parse(raw)?.state?.theme;
-        document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
-      } catch {
-        document.documentElement.dataset.theme = "dark";
-      }
+      // to (shape: { state: { theme, ... }, version }). An explicit "dark" or
+      // "light" wins; anything else follows the system (lib/theme.ts does the
+      // same once React is up, and keeps following it).
+      (function () {
+        var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        var theme = system;
+        try {
+          var raw = localStorage.getItem("ap.ui");
+          var saved = raw && JSON.parse(raw)?.state?.theme;
+          if (saved === "dark" || saved === "light") theme = saved;
+        } catch {}
+        document.documentElement.dataset.theme = theme;
+      })();
     </script>
   </head>
   <body>

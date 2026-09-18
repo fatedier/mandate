@@ -117,7 +117,7 @@ function CompareToggle({
           className={cn(
             "rounded px-2 py-0.5 text-2xs transition-colors",
             value === mode
-              ? "bg-accent text-foreground"
+              ? "bg-sel text-foreground"
               : "text-chrome hover:text-foreground"
           )}
         >
@@ -171,7 +171,7 @@ export function ChangesTab({
       <div className="flex flex-col gap-2 py-6 text-sm">
         <CompareToggle value={compare} onChange={setCompare} />
         <p className="text-destructive">{view.error}</p>
-        <button type="button" onClick={() => void load()} className="self-start text-primary underline">
+        <button type="button" onClick={() => void load()} className="self-start text-foreground underline decoration-border underline-offset-[3px]">
           Retry
         </button>
       </div>
@@ -246,7 +246,7 @@ export function ChangesTab({
                 type="button"
                 onClick={backToList}
                 aria-label="Back to changed files"
-                className="flex h-11 shrink-0 items-center text-sm text-primary"
+                className="flex h-11 shrink-0 items-center text-sm text-muted-foreground"
               >
                 ← Files
               </button>

@@ -52,9 +52,9 @@ test("MandateStore records low-level LLM calls", () => {
     expect(calls[0].outputTokens).toBe(4);
     expect(calls[0].totalTokens).toBe(14);
     expect(calls[0].latencyMs).toBe(321);
-    expect(calls[0].request.messages[0].content).toBe("wake this thread");
-    expect(calls[0].output.status).toBe("done");
-    expect(calls[0].metadata.threadId).toBe("thr-test");
+    expect((calls[0].request as { messages: { content: string }[] }).messages[0].content).toBe("wake this thread");
+    expect((calls[0].output as { status: string }).status).toBe("done");
+    expect(calls[0].metadata!.threadId).toBe("thr-test");
     expect(calls[0].requestHash).toBeTruthy();
 
     const summaries = store.listLlmCallSummaries();
@@ -63,11 +63,11 @@ test("MandateStore records low-level LLM calls", () => {
     expect(summaries[0].response).toBe(null);
     expect(summaries[0].output).toBe(null);
     expect(summaries[0].usage).toBe(null);
-    expect(summaries[0].metadata.threadId).toBe("thr-test");
+    expect(summaries[0].metadata!.threadId).toBe("thr-test");
     expect(summaries[0].requestHash).toBe(calls[0].requestHash);
 
     const detail = store.getLlmCall(started.id);
-    expect(detail?.request.messages[0].content).toBe("wake this thread");
+    expect((detail?.request as { messages: { content: string }[] }).messages[0].content).toBe("wake this thread");
 
   } finally {
     cleanup();

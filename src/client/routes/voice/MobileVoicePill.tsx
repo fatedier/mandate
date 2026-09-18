@@ -60,7 +60,7 @@ function dotColor(state: string): string {
       return "bg-live";
     case "connecting":
     case "requesting-mic":
-      return "bg-status-review";
+      return "bg-amber";
     case "error":
       return "bg-status-input";
     default:

@@ -4,25 +4,21 @@ import type { NavItem } from "@/shell/nav-config";
 import { AttentionBadge } from "@/shell/AttentionBadge";
 import { cn } from "@/lib/utils";
 
-// Nav is orientation furniture, so it rests at chrome contrast and only comes
-// forward on hover or when active. The active row is marked by a left rail
-// rather than a filled pill: a tinted block competes with the phase colours in
-// the content, whereas a 2px rail reads as position without spending colour.
+// Nav is orientation furniture: it rests at muted contrast and comes forward
+// on hover or when active. Selection is a --sel fill, never the primary — the
+// primary is reserved for the send button and focus rings.
 const collapsedLinkClass =
-  "flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:text-foreground hover:bg-foreground/5 [&.active]:text-primary [&.active]:bg-primary/10";
+  "relative flex size-9 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-sel [&.active]:text-foreground [&.active]:bg-sel";
 
 const expandedLinkClass =
-  "relative flex h-10 w-full items-center gap-3 rounded-lg pl-3 pr-2 text-sm text-foreground transition-colors hover:text-foreground hover:bg-foreground/5 " +
-  "[&.active]:text-foreground [&.active]:bg-foreground/[0.06] " +
-  "[&.active]:before:absolute [&.active]:before:left-0 [&.active]:before:top-1/2 [&.active]:before:h-4 [&.active]:before:w-0.5 " +
-  "[&.active]:before:-translate-y-1/2 [&.active]:before:rounded-full [&.active]:before:bg-primary";
+  "relative flex h-[30px] w-full items-center gap-2.5 rounded-sm px-2 text-xs font-[450] text-muted-foreground transition-colors hover:text-foreground hover:bg-sel [&.active]:text-foreground [&.active]:bg-sel";
 
 type NavItemRowProps = Omit<ComponentPropsWithRef<typeof Link>, "to" | "target"> & {
   item: NavItem;
   active: boolean;
   /** Resolved destination (section-memory aware), not necessarily item.to. */
   target: string;
-  /** Icon-only 40px square row (desktop sidebar collapsed mode). */
+  /** Icon-only 36px square row (desktop sidebar collapsed mode). */
   collapsed?: boolean;
   /** Attention count; pass only for the row that owns the badge (Home). */
   badgeCount?: number;
@@ -61,7 +57,7 @@ export function NavItemRow({
         onClick={handleClick}
         {...linkProps}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <Icon className="size-4 shrink-0" />
         {badgeCount !== undefined && <AttentionBadge count={badgeCount} floating />}
       </Link>
     );
@@ -76,7 +72,7 @@ export function NavItemRow({
         onClick={handleClick}
         {...linkProps}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <Icon className="size-4 shrink-0" />
         <span className="flex-1">{item.label}</span>
         {badgeCount !== undefined && <AttentionBadge count={badgeCount} />}
       </Link>

@@ -27,8 +27,7 @@ test("GET /api/tmux/sessions classifies sessions as managed vs unmanaged", async
     const app = buildSessionsTestApp({
       projects,
       tmuxClient: tmux.client,
-      getRawState: () => null,
-      refreshWindows: () => {}
+      getRawState: () => null
     });
     const r = await getJson(app, "/api/tmux/sessions");
     expect(r.status).toBe(200);

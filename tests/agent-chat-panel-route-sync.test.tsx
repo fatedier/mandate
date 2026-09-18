@@ -93,15 +93,15 @@ async function renderPanelAt(path: string) {
   const root = createRoot(container);
   const originalFetch = globalThis.fetch;
   const originalGetComputedStyle = globalThis.getComputedStyle;
-  (globalThis as { fetch: typeof fetch }).fetch = async () => new Response(JSON.stringify({
+  globalThis.fetch = (async () => new Response(JSON.stringify({
     thread: null,
     messages: [],
     hasMore: false,
     contextUsage: null
-  }), { status: 200, headers: { "content-type": "application/json" } });
+  }), { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
   globalThis.getComputedStyle = (() => ({
     lineHeight: "20px"
-  })) as typeof globalThis.getComputedStyle;
+  })) as unknown as typeof globalThis.getComputedStyle;
 
   await act(async () => {
     root.render(

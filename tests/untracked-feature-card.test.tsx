@@ -2,7 +2,7 @@ import { expect, test, beforeEach } from "bun:test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
-import { UntrackedFeatureCard } from "../src/client/routes/projects/UntrackedFeatureCard";
+import { FeatureRow } from "../src/client/routes/projects/FeatureRow.js";
 import type { Feature } from "../src/client/store/projects";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -32,7 +32,7 @@ test("renders feature.name and 'untracked' label", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <UntrackedFeatureCard projectSlug="p" feature={makeFeature()} paneStatus={null} />
+        <FeatureRow variant="untracked" projectSlug="p" feature={makeFeature()} item={null} paneStatus={null} />
       </MemoryRouter>
     );
   });
@@ -45,7 +45,7 @@ test("renders pane status dot when paneStatus provided", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <UntrackedFeatureCard projectSlug="p" feature={makeFeature()} paneStatus="running" />
+        <FeatureRow variant="untracked" projectSlug="p" feature={makeFeature()} item={null} paneStatus="running" />
       </MemoryRouter>
     );
   });
@@ -55,8 +55,8 @@ test("renders pane status dot when paneStatus provided", () => {
   expect(dot).not.toBeUndefined();
 });
 
-// Deliberate boundary: the mobile Chat action added to PassiveFeatureCard does
-// NOT extend here. The card action promotes a work-item reference into the
+// Deliberate boundary: the mobile Chat action on tracked rows does NOT extend
+// here. The row action promotes a work-item reference into the
 // overview thread, and an untracked feature is by definition one with no work
 // item (feature-card-data.ts), so there is nothing to reference. Giving these
 // rows a Chat entry would need a different destination, which is its own change.
@@ -65,7 +65,7 @@ test("untracked rows have no chat control at either breakpoint", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <UntrackedFeatureCard projectSlug="p" feature={makeFeature()} paneStatus={null} />
+        <FeatureRow variant="untracked" projectSlug="p" feature={makeFeature()} item={null} paneStatus={null} />
       </MemoryRouter>
     );
   });
@@ -79,7 +79,7 @@ test("renders link to /projects/:slug/features/:windowName", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <UntrackedFeatureCard projectSlug="p" feature={makeFeature()} paneStatus={null} />
+        <FeatureRow variant="untracked" projectSlug="p" feature={makeFeature()} item={null} paneStatus={null} />
       </MemoryRouter>
     );
   });

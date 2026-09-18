@@ -5,213 +5,191 @@
 @custom-variant dark (&:is([data-theme="dark"] *));
 
 /* ============================================================
-   Light theme (isomorphic mapping of the dark-primary design)
+   Light theme (neutral graphite)
    ============================================================ */
 :root {
-  /* shadcn standard tokens */
-  --background: #f6f7f9;
-  --foreground: #1b1d23;
+  /* shadcn standard tokens — neutral grey, no warm cast (the warm values were
+     judged muddy in dark mode; the two themes stay one family). The surface
+     ladder is three steps (panel = sidebar and list containers, background =
+     pane content, card = raised: composer and popovers). Depth is carried by
+     surface value and hairlines, never by cast shadows on cards. */
+  --background: #ffffff;
+  --foreground: #1a1a1c;
   --card: #ffffff;
-  --card-foreground: #1b1d23;
+  --card-foreground: #1a1a1c;
   --popover: #ffffff;
-  --popover-foreground: #1b1d23;
+  --popover-foreground: #1a1a1c;
   --primary: #5058e8;
   --primary-foreground: #ffffff;
-  --secondary: #eceef2;
-  --secondary-foreground: #1b1d23;
-  --muted: #eceef2;
-  --muted-foreground: #6b7280;
-  --accent: #eceef2;
-  --accent-foreground: #1b1d23;
-  --destructive: #dc2626;
+  --secondary: #ededf0;
+  --secondary-foreground: #1a1a1c;
+  --muted: #ededf0;
+  /* The light text ladder sits at the dark theme's contrast, not a lighter
+     echo of it: muted 6.3:1, chrome 4.9:1, faint 3.8:1 on white (they were
+     5.3 / 3.7 / 2.8 — meta and column headers fell under AA while the dark
+     theme's did not). */
+  --muted-foreground: #5f5f68;
+  --accent: #ededf0;
+  --accent-foreground: #1a1a1c;
+  --destructive: #d12222;
   --destructive-foreground: #ffffff;
-  --border: #e3e5ea;
-  --input: #d9dce3;
+  --border: rgba(0, 0, 0, 0.12);
+  --input: rgba(0, 0, 0, 0.12);
   --ring: #5058e8;
-  /* Radius tiers are declared explicitly in @theme (xs 6 → xl 16) rather than
-     derived from one base, so nesting can respect the concentric rule: an
-     inner corner reads as parallel to its parent only when its radius is the
-     parent's minus the padding between them. --radius stays as the shadcn
-     base that `ui/*` primitives reference. */
   --radius: 0.75rem;
 
-  /* New semantic tokens (spec §2) */
-  --panel: #fbfbfc;
-  --faint: #9aa0ab;
-  /* Chrome text: nav labels, tab labels, breadcrumbs, column headers. Sits
-     below muted-foreground so orientation furniture recedes behind content
-     without becoming unreadable. */
-  --chrome: #868c98;
+  /* Semantic tokens */
+  --panel: #f5f5f7;
+  --faint: #83838c;
+  --chrome: #70707a;
+  --sel: rgba(0, 0, 0, 0.06); /* 5% left the latency track and hover fills near-invisible on the panel */
+  --user-bubble: #f0f0f3;
+  --pill-mix: 12%;
+  /* Code blocks in chat sit ON the page as a lifted card (panel colour plus a
+     hairline and a language strip), not sunk below it — a sunk block was only
+     a few steps from the page and read as the same surface. Theme-aware,
+     unlike terminal-bg. */
+  --code-bg: #f5f5f7;
   --primary-soft: #3d43c4;
-  --primary-grad-from: #5f66ee;
-  --status-input: #dc2626;
-  --status-review: #b45309;
+  --primary-grad-from: #5058e8;
+  /* Status colours at AA on white: red 5.3, amber 4.7, green 5.4 (were 4.8 /
+     3.7 / 4.4). */
+  --status-input: #d12222;
+  /* "Needs you" is the accent family in both themes, the way Codex / Claude /
+     Devin mark it, so the app has one strong colour; an amber attention on a
+     white page read as mustard. --amber remains for genuine cautions. */
+  --status-review: #5058e8;
   --phase-design: #7c3aed;
-  --phase-working: #2563eb;
+  --phase-working: #2b6fd3;
   --phase-verifying: #0891b2;
-  --phase-done: #059669;
-  --live: #16a34a;
+  --phase-done: #1a7a48;
+  --live: #1a7a48;
 
-  /* Legacy tokens — names preserved, values remapped (renamed/removed in Phase 4) */
-  --surface-2: #fbfbfc;
+  /* Legacy aliases — names preserved for existing call sites; no new use. */
+  --surface-2: #f5f5f7;
   --terminal-bg: #0a0c10; /* always dark; hosts terminals + canvases */
-  --border-soft: #e9ebef;
-  --soft: #6b7280;
-  --blue: #2563eb;
-  --green: #059669;
+  --border-soft: rgba(0, 0, 0, 0.07);
+  --soft: #5f5f68;
+  --blue: #2b6fd3;
+  --green: #1a7a48;
   --amber: #b45309;
-  --red: #dc2626;
+  --red: #d12222;
   --violet: #7c3aed;
-  --neutral: #6b7280;
+  --neutral: #5f5f68;
 
-  /* Layered elevation: a tight contact shadow anchors the surface to the page,
-     a wider soft shadow carries its height. A single-layer shadow can only do
-     one of those, which is why one reads as painted-on rather than lifted.
-     No `0 0 0 1px` ring layer — every elevated surface here already carries a
-     real 1px border, and a ring outside it just thickens the edge ambiguously. */
-  --shadow-card:
-    0 1px 2px -1px rgba(24, 28, 40, 0.10),
-    0 2px 6px -2px rgba(24, 28, 40, 0.07);
-  --shadow-card-hover:
-    0 2px 4px -1px rgba(24, 28, 40, 0.11),
-    0 8px 20px -6px rgba(24, 28, 40, 0.14);
+  /* Elevation. Cards and list containers are a surface plus a hairline and
+     nothing else; the composer and popovers are the only things that float. */
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
+  --shadow-composer:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 24px -12px rgba(0, 0, 0, 0.12);
   --shadow-popover:
     0 2px 4px -2px rgba(24, 28, 40, 0.10),
     0 12px 32px -8px rgba(24, 28, 40, 0.20);
-  --shadow-primary-btn:
-    0 1px 2px rgba(52, 58, 168, 0.24),
-    0 4px 12px -4px rgba(80, 88, 232, 0.35);
-  /* Glow shadows: half strength in light theme (spec §2.5) */
-  --shadow-glow-blue: 0 0 12px rgba(37, 99, 235, 0.28);
-  --shadow-glow-green: 0 0 12px rgba(5, 150, 105, 0.28);
-  --shadow-glow-amber: 0 0 12px rgba(180, 83, 9, 0.28);
-  --shadow-glow-red: 0 0 12px rgba(220, 38, 38, 0.28);
-  --shadow-glow-violet: 0 0 12px rgba(124, 58, 237, 0.28);
+  --shadow-primary-btn: 0 0 #0000;
 
-  --diff-add-bg: rgba(5, 150, 105, 0.1);
+  --diff-add-bg: rgba(31, 138, 82, 0.1);
   --diff-del-bg: rgba(220, 38, 38, 0.1);
-  --diff-add-fg: #047857;
+  --diff-add-fg: #1f8a52;
   --diff-del-fg: #b91c1c;
 
   --surface-gradient-from: #ffffff;
-  --surface-gradient-to: #f6f7f9;
+  --surface-gradient-to: #f5f5f7;
 }
 
 /* ============================================================
-   Dark theme — the primary personality (A1 indigo × cool graphite)
+   Dark theme — the primary personality (neutral graphite)
    ============================================================ */
 [data-theme="dark"] {
-  /* Surface ladder. background → panel → card → popover are four even steps,
-     so nesting can be read from value alone. The old values stepped unevenly
-     (4, 6, 4), which is why every level also needed a border to be legible —
-     and stacked outlines are what made the UI read as flat and busy. */
-  --background: #0d0e12;
-  --foreground: #e6e7ec;
-  --card: #191a20;
-  --card-foreground: #e6e7ec;
-  --popover: #202128;
-  --popover-foreground: #e6e7ec;
-  --primary: #6e79f7;
-  --primary-foreground: #0c0d12;
-  --secondary: #202128;
-  --secondary-foreground: #e6e7ec;
-  --muted: #202128;
-  --muted-foreground: #9498a3;
-  --accent: #23242c;
-  --accent-foreground: #e6e7ec;
-  --destructive: #f87171;
-  --destructive-foreground: #0c0d12;
-  --border: #26272f;
-  --input: #2d2e37;
-  --ring: #6e79f7;
+  /* Surface ladder: background #141416 → panel #1e1e21 → card #222225 →
+     popover #26262a. Neutral grey, no warm cast: with the hue gone the value
+     steps alone carry the layering, and hairlines sit at 8% / 14%. Text is a
+     four-step ladder (foreground, muted, chrome, faint) kept wide enough to
+     read as four. */
+  --background: #141416;
+  --foreground: #ededf0;
+  --card: #222225;
+  --card-foreground: #ededf0;
+  --popover: #26262a;
+  --popover-foreground: #ededf0;
+  --primary: #7b84f6;
+  --primary-foreground: #0d0e14;
+  --secondary: #232326;
+  --secondary-foreground: #ededf0;
+  --muted: #232326;
+  --muted-foreground: #a1a1aa;
+  --accent: #232326;
+  --accent-foreground: #ededf0;
+  --destructive: #f0716f;
+  --destructive-foreground: #0d0e14;
+  --border: rgba(255, 255, 255, 0.14);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #7b84f6;
 
-  --panel: #131419;
-  --faint: #6b6f7a;
-  /* Chrome text: nav labels, tab labels, breadcrumbs, column headers. Sits
-     below muted-foreground so orientation furniture recedes behind content
-     without becoming unreadable. */
-  --chrome: #7d818c;
+  --panel: #1e1e21;
+  --faint: #6c6c75;
+  --chrome: #808089;
+  --sel: rgba(255, 255, 255, 0.07);
+  --user-bubble: #242427;
+  --pill-mix: 14%;
+  --code-bg: #1c1c20; /* lifted above the page (see the light block) */
   --primary-soft: #c7cbfa;
-  --primary-grad-from: #7681f8;
-  --status-input: #f87171;
-  --status-review: #fbbf24;
+  --primary-grad-from: #7b84f6;
+  --status-input: #f0716f;
+  --status-review: #7b84f6;
   --phase-design: #a78bfa;
-  --phase-working: #60a5fa;
+  --phase-working: #5f9ef3;
   --phase-verifying: #22d3ee;
-  --phase-done: #34d399;
-  --live: #4ade80;
+  --phase-done: #3fb27a;
+  --live: #3fb27a;
 
-  --surface-2: #111218;
+  --surface-2: #1e1e21;
   --terminal-bg: #0a0c10;
-  --border-soft: #1e2028;
-  --soft: #8b8e98;
-  --blue: #60a5fa;
-  --green: #34d399;
-  --amber: #fbbf24;
-  --red: #f87171;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --soft: #a1a1aa;
+  --blue: #5f9ef3;
+  --green: #3fb27a;
+  --amber: #d4a03c;
+  --red: #f0716f;
   --violet: #a78bfa;
-  --neutral: #8b8e98;
+  --neutral: #a1a1aa;
 
-  /* Dark elevation can't lean on cast shadows — a black shadow on a near-black
-     background is invisible. The load-bearing layer here is the inset top
-     highlight, which simulates a light source catching the card's top edge;
-     that's what separates the surface from the page. The cast shadows below it
-     only add weight. */
-  --shadow-card:
-    0 1px 2px rgba(0, 0, 0, 0.5),
-    0 4px 12px -4px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  --shadow-card-hover:
-    0 2px 4px rgba(0, 0, 0, 0.55),
-    0 12px 28px -8px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
+  --shadow-composer:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 8px 24px -12px rgba(0, 0, 0, 0.4);
   --shadow-popover:
     0 4px 8px -4px rgba(0, 0, 0, 0.6),
-    0 20px 56px -12px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --shadow-primary-btn:
-    0 1px 2px rgba(0, 0, 0, 0.45),
-    0 4px 14px -4px rgba(110, 121, 247, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --shadow-glow-blue: 0 0 12px rgba(96, 165, 250, 0.55);
-  --shadow-glow-green: 0 0 12px rgba(52, 211, 153, 0.55);
-  --shadow-glow-amber: 0 0 12px rgba(251, 191, 36, 0.55);
-  --shadow-glow-red: 0 0 12px rgba(248, 113, 113, 0.55);
-  --shadow-glow-violet: 0 0 12px rgba(167, 139, 250, 0.55);
+    0 20px 56px -12px rgba(0, 0, 0, 0.65);
+  --shadow-primary-btn: 0 0 #0000;
 
-  --diff-add-bg: rgba(52, 211, 153, 0.12);
-  --diff-del-bg: rgba(248, 113, 113, 0.12);
-  --diff-add-fg: #34d399;
-  --diff-del-fg: #f87171;
+  --diff-add-bg: rgba(63, 178, 122, 0.12);
+  --diff-del-bg: rgba(240, 113, 111, 0.12);
+  --diff-add-fg: #3fb27a;
+  --diff-del-fg: #f0716f;
 
-  --surface-gradient-from: #171821;
-  --surface-gradient-to: #15161d;
+  --surface-gradient-from: #1e1e21;
+  --surface-gradient-to: #141416;
 }
 
 /* Bridge raw vars into Tailwind v4 utilities (bg-*, text-*, border-*,
    shadow-*, animate-*). Names here define the utility vocabulary later
    phases build on. */
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    system-ui, "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
 
   /* ---- Type ramp ------------------------------------------------------
-     12px is the floor: below it Inter's hinting breaks down and the text
-     reads as fuzzy no matter the weight (bolding small text makes it worse,
-     not clearer — use color contrast instead).
-
-     Line-height and tracking travel WITH the size, so the optical
-     corrections large and small text need in opposite directions happen
-     automatically: big text gets tighter leading and negative tracking,
-     small text gets looser leading and positive tracking. A `leading-*`
-     utility still wins at a call site — Tailwind sorts it after `text-*`.
-
-     Ratios stay near 1.15–1.25 so adjacent steps are distinguishable at a
-     glance; that separation is what makes hierarchy legible.  */
+     12px is the floor. Line-height travels with the size. Tracking is 0 at
+     text sizes — the system font is already tuned there — and goes negative
+     from 18px up, where display sizes need tightening. A `leading-*`
+     utility still wins at a call site. */
   --text-2xs: 0.75rem;             /* 12 — metadata, chips, badges */
   --text-2xs--line-height: 1.35;
-  --text-2xs--letter-spacing: 0.005em;
+  --text-2xs--letter-spacing: 0em;
   --text-xs: 0.8125rem;            /* 13 — dense secondary text */
   --text-xs--line-height: 1.4;
   --text-xs--letter-spacing: 0em;
@@ -220,7 +198,7 @@
   --text-sm--letter-spacing: 0em;
   --text-base: 1rem;               /* 16 — emphasized body */
   --text-base--line-height: 1.5;
-  --text-base--letter-spacing: -0.005em;
+  --text-base--letter-spacing: 0em;
   --text-lg: 1.125rem;             /* 18 — card titles */
   --text-lg--line-height: 1.4;
   --text-lg--letter-spacing: -0.011em;
@@ -266,9 +244,12 @@
   --color-phase-verifying: var(--phase-verifying);
   --color-phase-done: var(--phase-done);
   --color-live: var(--live);
+  --color-sel: var(--sel);
+  --color-user-bubble: var(--user-bubble);
 
   --color-surface-2: var(--surface-2);
   --color-terminal-bg: var(--terminal-bg);
+  --color-code-bg: var(--code-bg);
   --color-border-soft: var(--border-soft);
   --color-soft: var(--soft);
   --color-blue: var(--blue);
@@ -292,6 +273,7 @@
   --shadow-card-hover: var(--shadow-card-hover);
   --shadow-popover: var(--shadow-popover);
   --shadow-primary-btn: var(--shadow-primary-btn);
+  --shadow-composer: var(--shadow-composer);
 
   /* ---- Radius tiers ---------------------------------------------------
      Four steps, each with one job. Concentric pairing: a 12px card with
@@ -299,8 +281,8 @@
      Mixing 4px and 12px corners inside one padding box is what makes
      nesting look unresolved. */
   --radius-xs: 0.375rem;  /*  6 — micro chips, tags, dots' containers */
-  --radius-sm: 0.5rem;    /*  8 — elements nested inside a card */
-  --radius-md: 0.625rem;  /* 10 — buttons, inputs, menu items */
+  --radius-sm: 0.5rem;    /*  8 — buttons, nav rows, tabs, elements nested inside a card */
+  --radius-md: 0.625rem;  /* 10 — inputs, menu items */
   --radius-lg: 0.75rem;   /* 12 — cards, panels */
   --radius-xl: 1rem;      /* 16 — dialogs, sheets */
 
@@ -357,12 +339,6 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Inter Variable ships an optical size axis; letting the browser drive it
-       thickens stems slightly at small sizes and refines them at large ones,
-       which is most of what "crisp" means for a variable font. cv05 gives the
-       tailed lowercase l so l/1/I stay distinguishable in identifiers. */
-    font-optical-sizing: auto;
-    font-feature-settings: "cv05" 1;
     /* Browser default 16px so Tailwind rem text-* classes match industry
        norms (text-sm = 14px, text-base = 16px). Per-size line-heights from the
        type ramp override this wherever a text-* utility is applied. */
@@ -388,19 +364,13 @@
 }
 
 @layer components {
-  /* The uppercase eyebrow used for nav groups, card meta headers and settings
-     sub-heads — 40+ hand-rolled copies existed before this, at four different
-     sizes and two weights. Bold at 12px muddies Inter's counters, so this is
-     semibold and leans on color contrast instead. Sits in @layer components
-     so a call site can still override any single property with a utility.
-     The var(--text-2xs) reference is what keeps that token emitted despite
-     `@theme inline` — Tailwind preserves theme variables our own CSS uses. */
+  /* Uppercase eyebrow for nav groups, card meta headers and settings sub-heads. Medium weight and 0.04em: the system font's caps are wider than Inter's, so the old 600 / 0.08em read as shouting. */
   .label-micro {
     font-size: var(--text-2xs);
     line-height: 1.35;
-    font-weight: 600;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
   }
 
   /* Numeric runs (durations, counts, timestamps) that update in place. Without
@@ -410,29 +380,46 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Status pill: the one filled element a header may carry. Tint is the status
+     colour mixed at --pill-mix over the surface (14% dark, 12% light). */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 22px;
+    padding: 0 0.5rem;
+    border-radius: var(--radius-xs);
+    font-size: var(--text-2xs);
+    font-weight: 500;
+    white-space: nowrap;
+    flex: none;
+  }
+  .pill-review { background: color-mix(in oklab, var(--status-review) var(--pill-mix), transparent); color: var(--status-review); }
+  .pill-amber { background: color-mix(in oklab, var(--amber) var(--pill-mix), transparent); color: var(--amber); }
+  .pill-red { background: color-mix(in oklab, var(--status-input) var(--pill-mix), transparent); color: var(--status-input); }
+  .pill-green { background: color-mix(in oklab, var(--phase-done) var(--pill-mix), transparent); color: var(--phase-done); }
+  .pill-blue { background: color-mix(in oklab, var(--phase-working) var(--pill-mix), transparent); color: var(--phase-working); }
+  .pill-cyan { background: color-mix(in oklab, var(--phase-verifying) var(--pill-mix), transparent); color: var(--phase-verifying); }
+  .pill-violet { background: color-mix(in oklab, var(--phase-design) var(--pill-mix), transparent); color: var(--phase-design); }
+  .pill-neutral { background: var(--sel); color: var(--muted-foreground); }
+
   .status-working {
     color: var(--phase-working);
-    --status-glow: var(--shadow-glow-blue);
   }
   .status-done {
     color: var(--phase-done);
-    --status-glow: var(--shadow-glow-green);
   }
   .status-waiting_user {
     color: var(--status-input);
-    --status-glow: var(--shadow-glow-red);
   }
   .status-running_service {
     color: var(--violet);
-    --status-glow: var(--shadow-glow-violet);
   }
   .status-idle_shell {
     color: var(--soft);
-    --status-glow: none;
   }
   .status-unknown {
     color: var(--soft);
-    --status-glow: none;
   }
 }
 
@@ -495,6 +482,13 @@
 [data-setting-flash] {
   animation: setting-flash 1.4s cubic-bezier(0.2, 0, 0, 1);
 }
+
+/* Desktop shell (Tauri): the traffic lights get their own 28px strip above
+   each column (shell/TitlebarStrip.tsx), so nothing below it differs from the
+   browser. Two earlier layouts shared the sidebar's header band with the
+   lights (first hiding the wordmark, then keeping it after a 68px spacer);
+   both broke at narrow sidebar widths. Nothing here is keyed on data-shell
+   any more; the attribute stays for the boot-time flag and its test. */
 
 /* Reduced motion: stop decorative animation loops. Breathing dots and
    spinners go static — color/presence still carries the signal (spec §11). */

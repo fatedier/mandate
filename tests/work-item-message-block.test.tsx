@@ -76,7 +76,7 @@ test("renders work item title and body from store, button calls onOpen", () => {
   act(() => {
     btn!.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   });
-  expect(opened).toBe("wi-1");
+  expect<string | null>(opened).toBe("wi-1");
 
   act(() => {
     root.unmount();

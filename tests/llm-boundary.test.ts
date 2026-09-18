@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { generateText } from "ai";
+import { generateText, type LanguageModel } from "ai";
 import {
   createAiSdkLanguageModel,
   createDisabledLanguageModel
@@ -26,6 +26,11 @@ test("createAiSdkLanguageModel returns null for incomplete non-Codex config", ()
   ).toBe(null);
 });
 
+/** The factory's return type admits a bare model-id string (the AI SDK's
+ *  global-provider shorthand); Mandate always builds a provider-backed model
+ *  object, so narrow to that for inspection. */
+type ProviderModel = Exclude<LanguageModel, string>;
+
 test("createAiSdkLanguageModel creates OpenAI-compatible models", () => {
   const model = createAiSdkLanguageModel({
     provider: "openai-compatible",
@@ -33,7 +38,7 @@ test("createAiSdkLanguageModel creates OpenAI-compatible models", () => {
     apiKey: "sk-or",
     baseURL: "https://proxy.example/v1",
     openaiProviderName: "proxy"
-  });
+  }) as ProviderModel | null;
   expect(model?.provider).toBe("proxy.responses");
   expect(model?.modelId).toBe("openai/gpt-4.1-mini");
 });
@@ -45,7 +50,7 @@ test("createAiSdkLanguageModel creates Kilo Gateway chat models", () => {
     apiKey: "sk-kilo",
     baseURL: "https://api.kilo.ai/api/gateway",
     organizationId: "org_123"
-  });
+  }) as ProviderModel | null;
   expect(model?.provider).toBe("kilo.chat");
   expect(model?.modelId).toBe("kilo-auto/balanced");
 });
@@ -82,7 +87,7 @@ test("Kilo Gateway requests include organization header when configured", async 
     apiKey: "sk-kilo",
     baseURL: "https://api.kilo.ai/api/gateway",
     organizationId: "org_123",
-    fetch: async (input, init) => {
+    fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers(init?.headers);
       requestedUrl = String(input);
       authorization = headers.get("authorization") ?? "";
@@ -104,7 +109,7 @@ test("Kilo Gateway requests include organization header when configured", async 
         }),
         { headers: { "content-type": "application/json" } }
       );
-    }
+    }) as unknown as typeof fetch
   });
 
   const result = await generateText({ model: model!, prompt: "hello", maxRetries: 0 });
@@ -115,7 +120,7 @@ test("Kilo Gateway requests include organization header when configured", async 
 });
 
 test("createDisabledLanguageModel fails predictably", async () => {
-  const model = createDisabledLanguageModel("missing config");
+  const model = createDisabledLanguageModel("missing config") as ProviderModel;
   await expect(model.doGenerate({} as any)).rejects.toThrow("missing config");
   await expect(model.doStream({} as any)).rejects.toThrow("missing config");
 });

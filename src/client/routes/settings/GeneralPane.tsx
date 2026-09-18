@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Info, Moon, RotateCcw, Sun } from "lucide-react";
+import { Info, Monitor, Moon, RotateCcw, Sun } from "lucide-react";
 import type { StorageCleanupResponse, StorageStatusResponse } from "@shared/api-contracts";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { api } from "@/lib/api-paths";
-import { isDesktopRuntime } from "@/lib/runtime";
+import { isDesktopRuntime, isTauriRuntime } from "@/lib/runtime";
+import { ZOOM_STEPS, formatZoom } from "@/lib/desktop-zoom";
+import { SimpleSelect } from "@/components/ui/select";
 import { useUIStore, type Theme } from "@/store/ui";
 import {
   buildAgentsPatch,
@@ -32,16 +34,21 @@ export function GeneralPane() {
   );
 }
 
-/** Theme lives in local UI state, not server config — no save unit, no footer. */
+const ZOOM_OPTIONS = ZOOM_STEPS.map((step) => ({ value: String(step), label: formatZoom(step) }));
+
+/** Theme (and, in the desktop shell, zoom) live in local UI state, not server
+ *  config — no save unit, no footer. */
 function AppearanceBlock() {
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+  const zoom = useUIStore((s) => s.interfaceZoom);
+  const setZoom = useUIStore((s) => s.setInterfaceZoom);
   return (
     <SettingsSection title="Appearance" rows>
       <SettingRow
         anchor="theme"
         label="Theme"
-        description="Applies to this browser only — it is not part of your saved configuration."
+        description="System follows the OS appearance. Applies to this app only — it is not part of your saved configuration."
         fit="auto"
       >
         <ToggleGroup
@@ -51,6 +58,10 @@ function AppearanceBlock() {
           variant="outline"
           size="sm"
         >
+          <ToggleGroupItem value="system" aria-label="System theme">
+            <Monitor className="h-4 w-4" />
+            <span className="ml-1.5">System</span>
+          </ToggleGroupItem>
           <ToggleGroupItem value="dark" aria-label="Dark theme">
             <Moon className="h-4 w-4" />
             <span className="ml-1.5">Dark</span>
@@ -61,6 +72,20 @@ function AppearanceBlock() {
           </ToggleGroupItem>
         </ToggleGroup>
       </SettingRow>
+      {isTauriRuntime() && (
+        <SettingRow
+          anchor="interface-zoom"
+          label="Interface zoom"
+          description="⌘+ and ⌘− step it, ⌘0 resets. Remembered on this Mac."
+        >
+          <SimpleSelect
+            aria-label="Interface zoom"
+            value={String(zoom)}
+            options={ZOOM_OPTIONS}
+            onValueChange={(next) => setZoom(Number(next))}
+          />
+        </SettingRow>
+      )}
     </SettingsSection>
   );
 }

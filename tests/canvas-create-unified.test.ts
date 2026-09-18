@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { initializeProjectsSchema } from "../src/server/modules/projects/schema.js";
 import { initializeFeaturesSchema } from "../src/server/modules/features/schema.js";
 import { initializeAgentSchema } from "../src/server/modules/agent/schema.js";
@@ -20,7 +23,7 @@ function setup() {
   const projects = new ProjectsStore(db);
   const features = new FeaturesStore(db);
   const workItems = new WorkItemStore(db);
-  const canvases = new CanvasStore(db);
+  const canvases = new CanvasStore(db, mkdtempSync(join(tmpdir(), "md-canvas-unified-")));
   const projectId = projects.insert({
     name: "p", workingDir: "/tmp/p", tmuxSessionName: "p",
     ownership: "app", gitRemote: null, isGit: false

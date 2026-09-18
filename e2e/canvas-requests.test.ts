@@ -28,7 +28,7 @@ async function open() {
   try {
     await page.goto(fixture.baseUrl + WORKER_PATH);
     await worker.locator("iframe").contentFrame().locator("#draft").fill("Worker draft");
-    await page.getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("tab", { name: "Canvases", exact: true }).click();
     await page.getByRole("button", { name: "Open canvas: Workspace canvas", exact: true }).waitFor();
     return {
       fixture, page, worker, modal, errors,
@@ -76,7 +76,7 @@ test("a Canvas modal joins the Worker's pending request and one update does not 
     expect(env.requests()).toBe(2);
     expect(env.failures()).toBe(0);
     await env.closeModal();
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     expect(await env.worker.locator("iframe").contentFrame().locator("#draft").inputValue()).toBe("Worker draft");
     expect(env.errors).toEqual([]);
   } finally { await env.close(); }
@@ -108,7 +108,7 @@ test("updates throughout a slow shared download cause one follow-up without canc
     await second.fulfill({ response: await second.fetch() });
     await env.modal.locator("iframe").contentFrame().getByRole("heading", { name: "Latest content", exact: true }).waitFor();
     await env.closeModal();
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.worker.locator("iframe").contentFrame().getByRole("heading", { name: "Latest content", exact: true }).waitFor();
     expect(env.requests()).toBe(3);
     expect(env.failures()).toBe(0);
@@ -128,7 +128,7 @@ test("closing the modal leaves a request alive for the retained Worker", async (
     env.fixture.renameCanvas("Delivered after closing");
     await route.fulfill({ response: await route.fetch() });
     await env.worker.getByText("Delivered after closing", { exact: true }).waitFor({ state: "attached" });
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     expect(await env.worker.locator("iframe").contentFrame().locator("#draft").inputValue()).toBe("Worker draft");
     expect(env.requests()).toBe(2);
     expect(env.failures()).toBe(0);
@@ -177,7 +177,7 @@ test("reconnect refreshes both readers once and a publication revision refreshes
     await env.modal.locator("iframe").contentFrame().getByText("Updated asset", { exact: true }).waitFor({ timeout: 10000 });
     expect(env.requests()).toBe(before + 1);
     await env.closeModal();
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.worker.locator("iframe").contentFrame().getByText("Updated asset", { exact: true }).waitFor();
     expect(env.requests()).toBe(before + 1);
     expect(env.errors).toEqual([]);

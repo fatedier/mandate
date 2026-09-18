@@ -46,7 +46,7 @@ test("Activity reuses each cached query, revalidates after five minutes and hono
     await holdResponse;
     await route.fulfill({ json: data });
   });
-  const headline = page.locator("#activity-panel-overview .text-2xl").first();
+  const headline = page.locator("#activity-panel-overview .text-xl").first();
   const home = async () => {
     await page.locator('nav a[href="/projects"]').click();
     await page.waitForFunction(() => !document.querySelector("#activity-panel-overview"));
@@ -144,7 +144,7 @@ test("a failed manual Refresh preserves the headline and retries when returning 
       await route.fulfill({ json: summary(new URL(route.request().url()), 100 + requests) });
     }
   });
-  const headline = page.locator("#activity-panel-overview .text-2xl").first();
+  const headline = page.locator("#activity-panel-overview .text-xl").first();
   try {
     await page.goto(`${fixture.baseUrl}/activity`);
     await headline.getByText("101", { exact: true }).waitFor();

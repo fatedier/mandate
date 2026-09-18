@@ -273,7 +273,7 @@ export function SetupChecklist({
   if (!setupVisible) return null;
 
   return (
-    <section className="rounded-lg border border-border-soft bg-card">
+    <section className="rounded-lg border border-border-soft bg-panel">
       <div className="border-b border-border-soft p-4 md:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -295,8 +295,8 @@ export function SetupChecklist({
               className={cn(
                 "flex min-w-0 items-center gap-2.5 rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
                 index === stepIndex
-                  ? "border-ring bg-accent/40 text-foreground"
-                  : "border-border-soft bg-background/50 text-muted-foreground hover:border-border"
+                  ? "border-border bg-sel text-foreground"
+                  : "border-border-soft bg-background text-muted-foreground hover:bg-sel"
               )}
               onClick={() => setStepIndex(index)}
             >
@@ -324,7 +324,7 @@ export function SetupChecklist({
         ) : (
           <>
             <div className="mb-4">
-              <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              <div className="label-micro text-chrome">
                 {activeStep.title}
               </div>
               <h3 className="mt-2 max-w-4xl text-xl font-semibold leading-snug">

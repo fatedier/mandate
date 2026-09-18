@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { buildChatHistoryTools } from "../src/server/modules/agent/tools/chat-history.js";
 import { AgentHistoryStore, GLOBAL_HISTORY_PROJECT } from "../src/server/modules/agent/history-store.js";
+import type { AgentMessage } from "../src/server/modules/agent/agent-store.js";
 import { freshStoresEnv, seedFeature, seedProject } from "./helpers/fixtures.js";
 
 function setup(scope: "manager" | "worker" = "manager") {
@@ -241,7 +242,7 @@ test("chat_history_search clamps explicit since to relative preset window", asyn
 test("chat_history_search backfills recent unindexed rows before old migration history", async () => {
   const env = setup();
   try {
-    const oldMessages = [];
+    const oldMessages: AgentMessage[] = [];
     for (let i = 0; i < 12; i += 1) {
       oldMessages.push(env.agentStore.appendMessage({
         threadId: env.thread.id,
@@ -1750,7 +1751,7 @@ test("chat_history_search leads with the best match, not the most hits", async (
       env.agentStore.appendMessage({
         threadId: sparse.id,
         role: "assistant",
-        source: "agent",
+        source: "self",
         content: { type: "text", text: `${filler} quilloscope ${filler}` }
       });
     }
