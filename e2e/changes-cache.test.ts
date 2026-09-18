@@ -104,9 +104,9 @@ test("leaving Changes cancels an unfinished patch and reopening can load it", as
     await page.goto(`${fixture.baseUrl}${WORKER_PATH}?tab=changes`);
     const held = await pending;
     const cancelled = page.waitForEvent("requestfailed", { predicate: (request) => request === held.request() });
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
     await cancelled;
-    await page.getByRole("button", { name: "Changes", exact: true }).click();
+    await page.getByRole("tab", { name: "Changes", exact: true }).click();
     await page.getByText("reopened-a.ts", { exact: true }).waitFor();
     expect(requests).toBe(2);
   } finally {

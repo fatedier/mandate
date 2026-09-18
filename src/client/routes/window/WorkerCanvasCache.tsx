@@ -67,7 +67,7 @@ export function WorkerCanvasCache({ children }: { children: ReactNode }) {
             data-worker-canvas={entry.featureId}
             hidden={!visible}
             inert={!visible}
-            className="w-full mx-auto max-w-[1120px] px-3 pb-3 md:px-6 md:pb-6 group-data-[pane-mode=worker]/workspace:max-w-none"
+            className="w-full mx-auto max-w-[1280px] px-4 pb-6 md:px-7 group-data-[pane-mode=worker]/workspace:max-w-none"
           >
             <Suspense fallback={null}>
               <FeatureCanvasTab canvasId={entry.canvasId} active={visible} />

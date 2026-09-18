@@ -7,13 +7,14 @@ test("AsyncManagerDispatcher: invokes onResult with assistant text after wake fi
   const env = freshAgentEnv();
   try {
     const thread = env.agentStore.getOrCreateThread("manager", null);
-    let scheduledWake: { threadId: string; reason: string } | null = null;
+    // Boxed so TS sees the write from inside the wakeManager callback.
+    const scheduled: { wake: { threadId: string; reason: string } | null } = { wake: null };
     const results: { callId: string; result: string }[] = [];
 
     const d = new AsyncManagerDispatcher({
       agentStore: env.agentStore,
       wakeManager: (threadId, reason, _triggerMsgId) => {
-        scheduledWake = { threadId, reason };
+        scheduled.wake = { threadId, reason };
         return "wake-1";
       },
       sendToolResult: (callId, payload) => {
@@ -22,8 +23,8 @@ test("AsyncManagerDispatcher: invokes onResult with assistant text after wake fi
     });
 
     d.start({ callId: "call_1", query: "what's running?" });
-    expect(scheduledWake?.threadId).toBe(thread.id);
-    expect(scheduledWake?.reason).toBe("user");
+    expect(scheduled.wake?.threadId).toBe(thread.id);
+    expect(scheduled.wake?.reason).toBe("user");
 
     const messages = env.agentStore.getActiveMessages(thread.id);
     expect(messages.length).toBe(1);

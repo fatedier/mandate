@@ -150,7 +150,7 @@ export function ActivityView() {
               className={cn(
                 "rounded-md border px-2.5 py-1 text-xs transition-colors",
                 kind === option
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-border bg-sel text-foreground"
                   : "border-border-soft text-muted-foreground hover:text-foreground"
               )}
               onClick={() => setKind(option)}
@@ -160,7 +160,9 @@ export function ActivityView() {
           ))}
         </div>
         <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="sm" asChild>
+          {/* 28px, both of them: the body's controls sit a step under the
+              header band's, and the link matches the button beside it. */}
+          <Button variant="ghost" size="xs" asChild>
             <Link to="/settings?tab=memory">
               <Settings2 className="h-3.5 w-3.5" />
               <span className="ml-1.5">Configure</span>
@@ -168,7 +170,7 @@ export function ActivityView() {
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={triggering}
             onClick={() => void triggerDream()}
           >
@@ -229,16 +231,18 @@ function changedIn(run: MemoryDreamRunDto): number {
   return c.update + c.merge + c.archive + c.rescope;
 }
 
+// The dream node stays a filled dot: shape carries the distinction from the
+// hollow learned/archived nodes without needing a colour.
 const NODE_TONE: Record<ActivityKind, string> = {
   learned: "border-live",
-  archived: "border-status-review",
-  dream: "border-primary bg-primary"
+  archived: "border-amber",
+  dream: "border-muted-foreground bg-muted-foreground"
 };
 
 const VERB_TONE: Record<ActivityKind, string> = {
   learned: "text-live",
-  archived: "text-status-review",
-  dream: "text-primary"
+  archived: "text-amber",
+  dream: "text-muted-foreground"
 };
 
 const VERB: Record<ActivityKind, string> = {
@@ -328,7 +332,7 @@ function DreamEvent({ dream, onOpen }: { dream: DreamBatch; onOpen: () => void }
       <button
         type="button"
         onClick={onOpen}
-        className="mt-1 flex w-full flex-col gap-1.5 rounded-md border border-l-2 border-border-soft border-l-primary bg-card px-3 py-2 text-left hover:bg-muted/40"
+        className="mt-1 flex w-full flex-col gap-1.5 rounded-md border border-border-soft bg-panel px-3 py-2 text-left hover:bg-sel"
       >
         {dream.runs.map((run) => (
           <div key={run.id} className="flex min-w-0 items-center gap-2 text-xs">

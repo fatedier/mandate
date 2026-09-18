@@ -60,7 +60,7 @@ test("Canvas loads local Tailwind on demand and reuses it when opening an artifa
       const check = () => getComputedStyle(node).backgroundColor === "rgb(18, 52, 86)" ? resolve() : requestAnimationFrame(check);
       check();
     }));
-    await env.page.getByRole("button", { name: "Artifacts", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Canvases", exact: true }).click();
     await env.page.getByRole("button", { name: "Open canvas: Workspace canvas", exact: true }).click();
     const full = env.page.getByRole("dialog", { name: "Canvas", exact: true }).locator("iframe").contentFrame();
     await full.locator("#probe").waitFor();

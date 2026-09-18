@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { ChatInput } from "../src/client/routes/window/chat/ChatInput.js";
+import type { AgentChatScope } from "../src/client/store/agent-chat.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -13,7 +14,7 @@ test("ChatInput: Enter during IME composition does not send", async () => {
   const originalGetComputedStyle = globalThis.getComputedStyle;
   globalThis.getComputedStyle = (() => ({
     lineHeight: "20px"
-  })) as typeof globalThis.getComputedStyle;
+  })) as unknown as typeof globalThis.getComputedStyle;
 
   try {
     await act(async () => {
@@ -81,7 +82,7 @@ test("ChatInput: busy send and queued tray remain interactive without working co
   const originalGetComputedStyle = globalThis.getComputedStyle;
   globalThis.getComputedStyle = (() => ({
     lineHeight: "20px"
-  })) as typeof globalThis.getComputedStyle;
+  })) as unknown as typeof globalThis.getComputedStyle;
 
   try {
     await act(async () => {
@@ -154,4 +155,45 @@ test("ChatInput: busy send and queued tray remain interactive without working co
     globalThis.getComputedStyle = originalGetComputedStyle;
     container.remove();
   }
+});
+
+function mount(props: { scope?: AgentChatScope }) {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const originalGetComputedStyle = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = (() => ({ lineHeight: "20px" })) as unknown as typeof globalThis.getComputedStyle;
+  act(() => {
+    root.render(<ChatInput onSend={() => {}} scope={props.scope} />);
+  });
+  return {
+    container,
+    unmount: () => {
+      act(() => root.unmount());
+      globalThis.getComputedStyle = originalGetComputedStyle;
+      container.remove();
+    }
+  };
+}
+
+test("ChatInput: the placeholder names the scope", async () => {
+  const worker = mount({ scope: { type: "worker", featureId: "f1" } });
+  expect(worker.container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Message the worker…");
+  worker.unmount();
+  const manager = mount({ scope: { type: "manager" } });
+  expect(manager.container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Message the manager…");
+  manager.unmount();
+  const side = mount({});
+  expect(side.container.querySelector("textarea")?.getAttribute("placeholder")).toBe("Message…");
+  side.unmount();
+});
+
+test("ChatInput: the composer is a raised card with the send hint", async () => {
+  const view = mount({ scope: { type: "manager" } });
+  const card = view.container.querySelector('[data-slot="composer"]')!;
+  expect(card === null).toBe(false);
+  expect(card.className.split(/\s+/)).toContain("shadow-composer");
+  expect(view.container.textContent).toContain("to send");
+  expect(view.container.querySelector("textarea")?.style.maxHeight).toBe("calc(8lh + 0.25rem)");
+  view.unmount();
 });

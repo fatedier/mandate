@@ -441,7 +441,7 @@ test("AgentStore.getContextUsage: estimates active history after compression", (
 });
 
 test("AgentStore.ensureSystemMessage: replaces the stored prompt when the template changed", () => {
-  const { agentStore } = freshStore();
+  const { agentStore, store } = freshStore();
   const thread = agentStore.getOrCreateThread("worker", "feat-sys");
 
   const first = agentStore.ensureSystemMessage(thread.id, "old policy text");
@@ -461,7 +461,7 @@ test("AgentStore.ensureSystemMessage: replaces the stored prompt when the templa
   });
 
   // Still exactly one system message; seq 0 preserved.
-  const systemRows = agentStore.db
+  const systemRows = store.db
     .prepare("select seq, content from agent_messages where thread_id = ? and role = 'system'")
     .all(thread.id) as { seq: number; content: string }[];
   expect(systemRows.length).toBe(1);

@@ -37,6 +37,7 @@ export function selectTerminalPane(
   if (!pane) return null;
   return {
     paneId: pane.paneId,
+    paneIndex: pane.paneIndex,
     paneWidth: pane.paneWidth,
     paneHeight: pane.paneHeight,
     currentCommand: pane.currentCommand,

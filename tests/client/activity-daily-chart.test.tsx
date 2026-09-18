@@ -162,3 +162,31 @@ test("a window with no days at all draws no chart", async () => {
   // the tree and the runner never comes back.
   expect(page.querySelectorAll("svg").length).toBe(0);
 });
+
+test("bars are neutral; only failures are coloured", async () => {
+  const svg = await renderChart(DAILY);
+  const bars = Array.from(svg.querySelectorAll("g rect"));
+  const classes = bars.map((r) => r.getAttribute("class") ?? "");
+  expect(classes.some((c) => c.includes("fill-faint"))).toBe(true);
+  expect(classes.some((c) => c.includes("fill-status-input"))).toBe(true);
+  expect(classes.some((c) => c.includes("fill-primary"))).toBe(false);
+  expect(classes.some((c) => c.includes("fill-destructive"))).toBe(false);
+  // Nothing is hovered yet: no band, no lifted bar.
+  expect(svg.querySelector("[data-chart-band]") === null).toBe(true);
+  expect(classes.some((c) => c.includes("fill-muted-foreground"))).toBe(false);
+});
+
+test("the hovered day gets a --sel band behind the column and its bar lifts to muted-foreground", async () => {
+  const svg = await renderChart(DAILY);
+  const hit = svg.querySelector("[data-chart-hit]")!;
+  await act(async () => {
+    hit.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+  });
+  const band = svg.querySelector("[data-chart-band]")!;
+  expect(band === null).toBe(false);
+  expect((band.getAttribute("class") ?? "").split(/\s+/)).toContain("fill-sel");
+  const lifted = bars(svg).map((g) => rectsIn(g)[0]!.getAttribute("class") ?? "");
+  // Only the hovered column lifts; the others keep the neutral fill.
+  expect(lifted[0]!.split(/\s+/)).toContain("fill-muted-foreground");
+  expect(lifted.slice(1).every((c) => c.split(/\s+/).includes("fill-faint"))).toBe(true);
+});

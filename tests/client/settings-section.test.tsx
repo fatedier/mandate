@@ -32,9 +32,10 @@ function stubFooter(overrides: Partial<SectionFooterState> = {}): SectionFooterS
   return { dirty: false, saving: false, error: "", justSaved: false, onSave: () => {}, ...overrides };
 }
 
+/** The panel under the header line — the surface that carries the dirty frame. */
 function card(c: HTMLElement): HTMLElement {
-  const el = c.firstElementChild;
-  if (!el) throw new Error("expected the section card to render");
+  const el = c.querySelector('[data-slot="section-panel"]');
+  if (!el) throw new Error("expected the section panel to render");
   return el as HTMLElement;
 }
 
@@ -52,10 +53,12 @@ function spanContaining(c: HTMLElement, text: string): HTMLElement {
   return span as unknown as HTMLElement;
 }
 
-/** SettingsSection is the visual save-unit shell: card + header (+ optional
- *  restart pill / header slot) + body, with a footer that only exists while
- *  its SectionFooterState has something to say (dirty/saving/error/justSaved).
- *  These tests pin the footer's state machine and the card's dirty border. */
+/** SettingsSection is the visual save-unit shell on the list language: a 32px
+ *  header line (title · description as meta · restart pill · trailing slot)
+ *  over ONE bg-panel hairline panel holding the body, with a footer row that
+ *  only exists while its SectionFooterState has something to say
+ *  (dirty/saving/error/justSaved). These tests pin the footer's state machine
+ *  and the panel's dirty frame. */
 describe("SettingsSection", () => {
   test("renders title, description, headerSlot and children; no footer prop means no footer ever", () => {
     const c = render(
@@ -66,12 +69,25 @@ describe("SettingsSection", () => {
     const h3 = c.getElementsByTagName("h3")[0];
     if (!h3) throw new Error("expected the section h3 title");
     expect(h3.textContent).toBe("General");
-    expect(h3.className).toContain("text-sm");
+    expect(h3.className).toContain("text-xs");
     expect(h3.className).toContain("font-semibold");
-    expect(card(c).className).toContain("rounded-xl");
-    expect(card(c).className).toContain("bg-card");
-    expect(card(c).className).not.toContain("border-primary/45");
-    expect(spanContaining(c, "Core behavior").className).toContain("text-chrome");
+    expect(h3.getAttribute("data-slot")).toBe("section-title");
+    const header = c.querySelector('[data-slot="section-header"]')!;
+    expect(header === null).toBe(false);
+    for (const t of ["flex", "h-8", "items-center"]) expect(header.className.split(/\s+/)).toContain(t);
+    // The panel is the redesign's list surface, not the old rounded card.
+    for (const t of ["rounded-lg", "border-border-soft", "bg-panel"]) expect(card(c).className.split(/\s+/)).toContain(t);
+    for (const t of ["rounded-xl", "bg-card", "border-primary/45", "border-status-review/45"]) expect(card(c).className.split(/\s+/)).not.toContain(t);
+    // The description is the header line's meta, and it lives in the header,
+    // not inside the panel.
+    const meta = spanContaining(c, "Core behavior");
+    expect(meta.getAttribute("data-slot")).toBe("section-meta");
+    expect(meta.className).toContain("text-faint");
+    expect(header.contains(meta)).toBe(true);
+    expect(card(c).contains(meta)).toBe(false);
+    // The header slot is the header line's trailing control, after the spacer.
+    expect(header.textContent).toContain("SLOT");
+    expect(card(c).textContent).not.toContain("SLOT");
     expect(c.textContent).toContain("SLOT");
     expect(c.textContent).toContain("FIELDS");
     // Read-only section: no pill, no footer, no Save button.
@@ -91,6 +107,34 @@ describe("SettingsSection", () => {
     expect(pill.className).toContain("rounded-full");
   });
 
+  test("collapse: the header is a 44px row inside the panel; closed, the panel is that row alone", () => {
+    let toggles = 0;
+    const c = render(
+      <SettingsSection title="kilo" collapse={{ open: false, onToggle: () => { toggles += 1; } }} rows>
+        <div>FIELDS</div>
+      </SettingsSection>
+    );
+    // No outside header line: the group is a list item, not a section.
+    const headers = Array.from(c.querySelectorAll('[data-slot="section-header"]'));
+    expect(headers).toHaveLength(1);
+    expect(card(c).contains(headers[0]!)).toBe(true);
+    expect(headers[0]!.className.split(/\s+/)).toContain("min-h-11");
+    const toggle = c.querySelector("button[aria-expanded]")!;
+    expect(toggle === null).toBe(false);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(c.textContent).not.toContain("FIELDS");
+    act(() => { (toggle as HTMLButtonElement).click(); });
+    expect(toggles).toBe(1);
+    // Open: the body follows the row under a hairline.
+    const o = render(
+      <SettingsSection title="kilo" collapse={{ open: true, onToggle: () => {} }} rows>
+        <div>FIELDS</div>
+      </SettingsSection>
+    );
+    expect(o.textContent).toContain("FIELDS");
+    expect(o.querySelector("button[aria-expanded]")!.getAttribute("aria-expanded")).toBe("true");
+  });
+
   test("idle footer state renders no footer", () => {
     const c = render(
       <SettingsSection title="General" footer={stubFooter()}>
@@ -99,17 +143,19 @@ describe("SettingsSection", () => {
     );
     expect(c.getElementsByTagName("button").length).toBe(0);
     expect(c.textContent).not.toContain("Unsaved changes");
-    expect(card(c).className).not.toContain("border-primary/45");
+    expect(card(c).className).not.toContain("border-status-review/45");
   });
 
-  test("dirty: footer appears with the unsaved note, primary border, and a live Save button", () => {
+  test("dirty: footer appears with the unsaved note, the needs-you frame, and a live Save button", () => {
     let saves = 0;
     const c = render(
       <SettingsSection title="General" footer={stubFooter({ dirty: true, onSave: () => { saves += 1; } })}>
         <div />
       </SettingsSection>
     );
-    expect(card(c).className).toContain("border-primary/45");
+    // A frame means "wants you": the dirty panel borrows the attention colour.
+    expect(card(c).className.split(/\s+/)).toContain("border-status-review/45");
+    expect(card(c).className).not.toContain("border-primary");
     const note = spanContaining(c, "Unsaved changes");
     expect(note.className).toContain("text-muted-foreground");
     // The dirty marker is a styled dot, not a ● glyph — a text character's box
@@ -119,10 +165,16 @@ describe("SettingsSection", () => {
       el.className.includes("rounded-full")
     );
     if (!dot) throw new Error("expected the dirty dot");
-    expect(dot.className).toContain("bg-primary");
+    expect(dot.className).toContain("bg-status-review");
     const button = saveButton(c);
     expect(button.textContent).toBe("Save");
     expect(button.disabled).toBe(false);
+    // 28px, like every control on a list surface; the footer is the panel's
+    // last row, inside it, under a hairline.
+    expect(button.className.split(/\s+/)).toContain("h-7");
+    const footer = button.parentElement!;
+    expect(card(c).contains(footer)).toBe(true);
+    expect(footer.className.split(/\s+/)).toContain("border-t");
     act(() => {
       button.click();
     });

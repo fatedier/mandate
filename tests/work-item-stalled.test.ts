@@ -116,7 +116,10 @@ describe("listStalled", () => {
       role: "user",
       source: "feature-event",
       sourceThreadId: null,
-      content: { type: "text", text: "keep going" }
+      content: {
+        type: "feature_event", kind: "completion", taskId: "task-1",
+        featureId: f.featureId, workItemId: null, label: "stuck", summary: "keep going"
+      }
     });
     expect(s.workItems.listStalled()).toEqual([]);
   });

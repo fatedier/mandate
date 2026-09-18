@@ -1,11 +1,15 @@
 import { expect, test } from "bun:test";
+import * as os from "node:os";
 import { tool, jsonSchema } from "ai";
 import type { ToolDispatcher } from "../../src/server/modules/agent/wake-loop.js";
 import { WakeLock } from "../../src/server/modules/agent/wake-lock.js";
+import type { AgentScope } from "../../src/server/modules/agent/tool-scope.js";
 import { SSE_EVENTS } from "../../src/shared/api-contracts.js";
 import { createTestWakeScheduler } from "../helpers/wake-scheduler.js";
 import { freshAgentEnv } from "../helpers/fixtures.js";
 import { codexEvents, codexSse, codexTestModel } from "../helpers/codex.js";
+
+const STUB_SCOPE = (): AgentScope => ({ kind: "manager", managerDir: os.tmpdir(), projectWorkingDirs: [] });
 
 const noTools: ToolDispatcher = {
   registry: { tools: {} },
@@ -39,7 +43,7 @@ test("Codex wake continues commentary, executes a tool, and replays persisted ph
     const { wakeAndWait } = createTestWakeScheduler({
       agentStore, lock: new WakeLock(), maxStepsPerWake: 5, llmModel: model,
       buildSystemPrompt: () => "system instructions",
-      buildToolScope: () => ({}),
+      buildToolScope: STUB_SCOPE,
       sse: { emit() {} },
       toolDispatcherForThread: () => ({
         registry: { tools: { lookup: tool({
@@ -91,7 +95,7 @@ for (const mode of ["budget", "cancel", "truncated"] as const) {
       });
       const { scheduler, wakeAndWait } = createTestWakeScheduler({
         agentStore, lock: new WakeLock(), maxStepsPerWake: 2, llmModel: model,
-        buildSystemPrompt: () => "system instructions", buildToolScope: () => ({}),
+        buildSystemPrompt: () => "system instructions", buildToolScope: STUB_SCOPE,
         toolDispatcherForThread: () => noTools,
         sse: { emit(event, data: any) {
           if (mode === "cancel" && event === SSE_EVENTS.agentMessageAppended && data.message.role === "assistant") {

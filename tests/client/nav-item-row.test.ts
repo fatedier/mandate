@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { House } from "lucide-react";
@@ -49,7 +49,7 @@ describe("NavItemRow", () => {
     const c = render(
       createElement(
         TooltipProvider,
-        { delayDuration: 150 },
+        {} as ComponentProps<typeof TooltipProvider>,
         createElement(
           Tooltip,
           null,
@@ -70,7 +70,7 @@ describe("NavItemRow", () => {
     );
     const anchor = firstAnchor(c);
     // The row's own classes survived the Slot className merge
-    expect(anchor.className).toContain("h-10 w-10");
+    expect(anchor.className).toContain("size-9");
     expect(anchor.className).toContain("active");
     expect(anchor.className).toContain("relative");
     expect(anchor.getAttribute("aria-label")).toBe("Home");
@@ -95,7 +95,7 @@ describe("NavItemRow", () => {
       })
     );
     const anchor = firstAnchor(c);
-    expect(anchor.className).toContain("h-10 w-full");
+    expect(anchor.className).toContain("h-[30px] w-full");
     expect(navigated).toBe(0);
 
     act(() => {

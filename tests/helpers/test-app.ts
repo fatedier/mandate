@@ -58,17 +58,18 @@ export function buildAgentsTestApp(deps: AgentsDeps): Hono {
  *  prompt builder, and tool-scope builder are no-ops — those code paths are
  *  covered by unit tests against each scope file directly. */
 export function buildTestScopes(featuresStore: FeaturesStore): Record<AgentScope, ScopeRuntime> {
-  const noop: Pick<ScopeRuntime, "buildSystemPrompt" | "buildToolScope" | "wrappedDispatcher"> = {
+  const noop: Pick<ScopeRuntime, "buildSystemPrompt" | "wrappedDispatcher" | "toolDefinitions"> = {
     buildSystemPrompt: () => "",
-    buildToolScope: () => ({}),
     wrappedDispatcher: {
       registry: { tools: {} },
       dispatch: async () => ({ result: null })
-    }
+    },
+    toolDefinitions: []
   };
   return {
     worker: {
       ...noop, scope: "worker",
+      buildToolScope: () => ({ kind: "worker", feature: {}, project: { workingDir: "" } }),
       verifyScopeId(scopeId) {
         if (!scopeId) return "worker scope requires a featureId";
         const f = featuresStore.getById(scopeId);
@@ -78,6 +79,7 @@ export function buildTestScopes(featuresStore: FeaturesStore): Record<AgentScope
     },
     manager: {
       ...noop, scope: "manager",
+      buildToolScope: () => ({ kind: "manager", managerDir: "", projectWorkingDirs: [] }),
       verifyScopeId: (scopeId) => scopeId === null
         ? null : "manager scope is a singleton (scopeId must be null)"
     }

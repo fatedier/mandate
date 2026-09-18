@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { buildTmuxSnapshot } from "../src/server/platform/tmux/tmux.js";
+import type { RawTmuxState } from "../src/server/platform/tmux/tmux-types.js";
 
 const analyzer = {
   getPaneAnalysis(pane) {
@@ -33,6 +34,8 @@ function baseAnalysis(status, title) {
 }
 
 test("buildTmuxSnapshot uses window analysis for aggregate state", () => {
+  // Raw fixtures carry the extra `analysis` / `windowAnalysis` fields the fake
+  // analyzer above reads back, and omit the pane fields the snapshot never uses.
   const snapshot = buildTmuxSnapshot({
     clients: [],
     sessions: [
@@ -89,12 +92,12 @@ test("buildTmuxSnapshot uses window analysis for aggregate state", () => {
         analysis: baseAnalysis("done", "Finished task")
       }
     ]
-  }, analyzer);
+  } as unknown as RawTmuxState, analyzer);
 
   const window = snapshot.sessions[0].windows[0];
-  expect(window.aggregate.status).toBe("done");
-  expect(window.aggregate.paneId).toBe("%4");
-  expect(window.aggregate.title).toBe("Whole window complete");
+  expect(window.aggregate!.status).toBe("done");
+  expect(window.aggregate!.paneId).toBe("%4");
+  expect(window.aggregate!.title).toBe("Whole window complete");
   expect(window.panes[1].analysis.status).toBe("done");
   expect(window.panes[0].changedAt).toBe("2026-04-29T08:00:00.000Z");
   expect(snapshot.counts.working).toBe(0);
@@ -164,7 +167,7 @@ test("buildTmuxSnapshot filters snapshot sessions to monitored windows", () => {
         analysis: baseAnalysis("working", "Unmonitored task")
       }
     ]
-  };
+  } as unknown as RawTmuxState;
 
   const snapshot = buildTmuxSnapshot(rawState, analyzer, {
     monitorWindowKeys: new Set(["nova:work-1"])

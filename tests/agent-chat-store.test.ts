@@ -409,7 +409,7 @@ test("agent-chat store: concurrent thread hydration shares a request and retries
   globalThis.fetch = (() => {
     calls++;
     return new Promise<Response>((resolve) => { finish = resolve; });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   try {
     const first = useAgentChatStore.getState().ensureThreadLoaded(scope);
     const second = useAgentChatStore.getState().ensureThreadLoaded({ ...scope });
@@ -444,7 +444,7 @@ test("agent-chat store: loaded scopes refresh once in the background without blo
     if (url.endsWith("/main/forks")) return Response.json({ thread: { id: "side" } });
     if (url.includes("/threads/side?")) return Response.json({ thread: { id: "side" }, messages: [], hasMore: false });
     throw new Error(`Unexpected request: ${url}`);
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   try {
     await useAgentChatStore.getState().ensureThreadLoaded(scope);
     await useAgentChatStore.getState().startSideConversation(scope);

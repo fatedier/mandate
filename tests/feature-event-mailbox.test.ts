@@ -61,7 +61,9 @@ test("drainMailboxToMessages skips feature_event rows, only drains message rows"
   // feature_event is still pending
   const events = store.listPendingFeatureEvents(threadId, 50);
   expect(events.length).toBe(1);
-  expect(events[0]!.content.signal).toBe("blocked");
+  const content = events[0]!.content;
+  if (content.kind !== "escalation") throw new Error(`expected an escalation event, got ${content.kind}`);
+  expect(content.signal).toBe("blocked");
 });
 
 test("mailbox queued predicates keep messages and feature_events separate", () => {
@@ -138,6 +140,7 @@ test("task_notify_caller with kind=blocked writes escalation with signal=blocked
     const evt = events[0]!;
     expect(evt.content.type).toBe("feature_event");
     expect(evt.content.kind).toBe("escalation");
+    if (evt.content.kind !== "escalation") throw new Error("expected an escalation event");
     expect(evt.content.signal).toBe("blocked");
     expect(evt.content.summary).toBe("Waiting for approval");
   } finally {
@@ -189,6 +192,7 @@ test("task_notify_caller with kind=needs_user writes escalation with signal=need
     const evt = events[0]!;
     expect(evt.content.type).toBe("feature_event");
     expect(evt.content.kind).toBe("escalation");
+    if (evt.content.kind !== "escalation") throw new Error("expected an escalation event");
     expect(evt.content.signal).toBe("needs_user");
     expect(evt.content.summary).toBe("waiting for user input");
     expect(evt.content.artifacts).toEqual([{

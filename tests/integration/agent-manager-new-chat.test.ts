@@ -76,7 +76,7 @@ test("POST /api/agents/manager/new-chat — gives archive hook the old thread be
     const r = await postJson(app, "/api/agents/manager/new-chat", {});
 
     expect(r.status).toBe(200);
-    expect(hookThreadId).toBe(old.id);
+    expect(hookThreadId as string | null).toBe(old.id);
     expect(archivedAtInsideHook).toBe(null);
     expect(agentStore.getThreadById(old.id)?.archivedAt).toBeTruthy();
   } finally { cleanup(); }

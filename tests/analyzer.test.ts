@@ -3,15 +3,34 @@ import {
   Analyzer,
   screenForAnalysis
 } from "../src/server/modules/analysis/analyzer.js";
+import type { PaneProcessInfo, RawTmuxPane } from "../src/server/platform/tmux/tmux-types.js";
 
-const basePane = {
-  paneId: "%1",
-  paneIndex: 1,
+let nextPid = 200;
+function proc(command: string): PaneProcessInfo {
+  return { pid: nextPid++, ppid: 100, state: "S", command };
+}
+
+const basePane: RawTmuxPane = {
   sessionName: "example-project",
+  windowId: "@2",
+  paneId: "%1",
   windowIndex: 2,
   windowName: "bin",
+  paneIndex: 1,
+  paneActive: true,
+  windowActive: true,
+  currentPath: "/Users/alice/example-project",
   currentCommand: "node",
-  foregroundProcesses: [{ command: "node /Users/alice/.nvm/versions/node/v22.22.0/bin/codex" }]
+  paneTitle: "",
+  panePid: 100,
+  paneTty: "/dev/ttys001",
+  paneWidth: 80,
+  paneHeight: 24,
+  captureHash: "",
+  changedAt: "2026-05-01T00:00:00.000Z",
+  preview: "",
+  processes: [],
+  foregroundProcesses: [proc("node /Users/alice/.nvm/versions/node/v22.22.0/bin/codex")]
 };
 
 test("screenForAnalysis separates dim Codex suggestions from semantic text", () => {
@@ -62,11 +81,8 @@ test("local fallback does not infer pane status when AI is disabled", () => {
     preview: "",
     styledCapture: "",
     foregroundProcesses: [
-      { command: "node /Users/alice/.nvm/versions/node/v22.22.0/bin/codex" },
-      {
-        command:
-          "/Users/alice/.nvm/versions/node/v22.22.0/lib/node_modules/@openai/codex/vendor/codex/codex"
-      }
+      proc("node /Users/alice/.nvm/versions/node/v22.22.0/bin/codex"),
+      proc("/Users/alice/.nvm/versions/node/v22.22.0/lib/node_modules/@openai/codex/vendor/codex/codex")
     ],
     processes: []
   });

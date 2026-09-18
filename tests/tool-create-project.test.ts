@@ -11,7 +11,7 @@ test("create_project: creates a tmux-backed project", async () => {
     });
     const r = await tool.handler(
       { name: "p1", workingDir: env.dir },
-      { threadId: "t1", wakeId: "w1" }
+      { threadId: "t1", wakeId: "w1", scope: { kind: "manager", managerDir: env.dir, projectWorkingDirs: [] } }
     );
     expect(r.projectId).toBeTruthy();
     expect(env.projects.getById(r.projectId!)!.tmuxSessionName).toBeTruthy();

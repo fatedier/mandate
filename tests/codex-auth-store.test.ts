@@ -140,7 +140,7 @@ test("Codex auth store refreshes through an injected HTTP client", async () => {
     },
     providerDefaults: { codex: "codex:default" }
   });
-  let captured: { url: string; init?: RequestInit } | null = null;
+  let captured = null as { url: string; init?: RequestInit } | null;
   const httpClient: HttpClient = {
     async fetch(input, init) {
       captured = { url: String(input), init };

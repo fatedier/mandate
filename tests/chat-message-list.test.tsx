@@ -114,7 +114,6 @@ test("ChatMessageList renders heartbeat wake provenance with assistant replies",
   const { container, cleanup } = await renderList(thread);
   try {
     expect(container.textContent).toContain("HEARTBEAT");
-    expect(container.textContent).toContain("[work-item]");
     expect(container.textContent).toContain("auto · 30m · checked active items");
     expect(container.textContent).toContain("No blockers right now.");
     expect(container.textContent).not.toContain("Review");
@@ -160,7 +159,6 @@ test("ChatMessageList renders feature-event wake provenance with source metadata
   const { container, cleanup } = await renderList(thread);
   try {
     expect(container.textContent).toContain("FEATURE");
-    expect(container.textContent).toContain("[task]");
     expect(container.textContent).toContain("Mandate / Event source display · completed");
     expect(container.textContent).toContain("I picked up the completed task.");
   } finally {
@@ -218,7 +216,6 @@ test("ChatMessageList keeps legacy feature-event wake provenance fallback", asyn
   const { container, cleanup } = await renderList(thread);
   try {
     expect(container.textContent).toContain("FEATURE");
-    expect(container.textContent).toContain("[task]");
     expect(container.textContent).toContain("event · feature task update");
     expect(container.textContent).toContain("Legacy wake reply.");
   } finally {
@@ -280,7 +277,6 @@ test("ChatMessageList renders watch system events with pane and note detail", as
   const { container, cleanup } = await renderList(thread);
   try {
     expect(container.textContent).toContain("WATCH");
-    expect(container.textContent).toContain("[pane]");
     expect(container.textContent).toContain(
       "pane %413 stable for 30s · Verify web/frps npm run type-check after serverinfo v2 implementation"
     );
@@ -360,7 +356,6 @@ test("ChatMessageList keeps alarm notes visible in provenance rows", async () =>
   const { container, cleanup } = await renderList(thread);
   try {
     expect(container.textContent).toContain("ALARM");
-    expect(container.textContent).toContain("[scheduled]");
     expect(container.textContent).toContain("note: Check the build result after lunch.");
   } finally {
     await cleanup();
@@ -388,7 +383,6 @@ test("ChatMessageList collapses runtime context into provenance metadata", async
   const { container, cleanup } = await renderList(thread);
   try {
     expect(container.textContent).toContain("CONTEXT");
-    expect(container.textContent).toContain("[runtime_context]");
     expect(container.textContent).toContain("snapshot");
     expect(container.textContent).not.toContain("RAW WORK ITEM SNAPSHOT");
   } finally {

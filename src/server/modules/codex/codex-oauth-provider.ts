@@ -69,7 +69,9 @@ export function createCodexOAuthLanguageModel(cfg: CodexOAuthProviderConfig) {
     name: "codex",
     apiKey: DUMMY_API_KEY,
     baseURL: stripTrailingSlash(cfg.baseURL || CODEX_RESPONSES_BASE_URL),
-    fetch: async (input, init) => {
+    // Cast: Bun's fetch type carries a `preconnect` member a plain function
+    // does not; the SDK only ever calls it.
+    fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
       init?.signal?.throwIfAborted();
       const profile = await waitForCodexAccess(
         resolveCodexAccess(cfg.providerName, cfg.authStore, { httpClient }), init?.signal
@@ -107,7 +109,7 @@ export function createCodexOAuthLanguageModel(cfg: CodexOAuthProviderConfig) {
         throw await codexHttpErrorFromResponse(response);
       }
       return response;
-    }
+    }) as unknown as typeof fetch
   });
   return wrapLanguageModel({
     model: provider.responses(cfg.model),

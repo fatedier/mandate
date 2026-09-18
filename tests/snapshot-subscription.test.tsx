@@ -72,7 +72,7 @@ test("SSE boot hydrates once and reconnect still pulls messages, work items and 
     host.remove();
     globalThis.fetch = originalFetch;
     globalThis.EventSource = originalSource;
-    stores.forEach((store, i) => store.setState(saved[i] as never, true));
+    stores.forEach((store, i) => (store as { setState: (state: never, replace: true) => void }).setState(saved[i] as never, true));
   }
   expect(source.closed).toBe(true);
 });

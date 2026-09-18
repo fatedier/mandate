@@ -4,6 +4,7 @@ import { createAppContainer } from "./app/container.js";
 import { buildApp } from "./app/http-app.js";
 import { formatStartupModelLines } from "./app/startup-log.js";
 import { installProcessErrorHandlers, logError, parseLogLevel, setLogLevel } from "./platform/logger.js";
+import { parseParentPid, watchParent } from "./platform/process/parent-watch.js";
 
 type ServeCli = {
   help?: boolean;
@@ -11,6 +12,7 @@ type ServeCli = {
   host?: string;
   "data-dir"?: string;
   "log-level"?: string;
+  "parent-pid"?: string;
 };
 
 installProcessErrorHandlers();
@@ -44,6 +46,8 @@ Options:
                         so only do this on a trusted network.
       --data-dir <path> Data directory (default: ~/.mandate, env MANDATE_DATA_DIR)
       --log-level <lvl> Runtime log level: silent, error, warn, info, debug
+      --parent-pid <n>  Exit when this process is gone (the desktop shell
+                        passes its own pid, so a crashed shell leaves no server)
 
 Environment:
   PORT                  Listen port (overridden by --port)
@@ -73,6 +77,7 @@ function parseServeCli(args: string[]): ServeCli {
         host: { type: "string" },
         "data-dir": { type: "string" },
         "log-level": { type: "string" },
+        "parent-pid": { type: "string" },
       },
       strict: true,
       allowPositionals: false,
@@ -123,6 +128,8 @@ applyCliLogLevel(cli["log-level"], serveHelp());
 if (cli.port) process.env.PORT = cli.port;
 if (cli.host) process.env.MANDATE_HOST = cli.host;
 if (cli["data-dir"]) process.env.MANDATE_DATA_DIR = cli["data-dir"];
+const parentPid = parseParentPid(cli["parent-pid"]);
+if (parentPid && "error" in parentPid) exitWithError(parentPid.error, serveHelp());
 
 const container = await createAppContainer();
 const { config } = container;
@@ -158,4 +165,7 @@ async function gracefulShutdown(signal: string) {
 }
 for (const sig of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
   process.on(sig, () => void gracefulShutdown(sig));
+}
+if (parentPid && "pid" in parentPid) {
+  watchParent({ pid: parentPid.pid, onGone: () => void gracefulShutdown(`parent ${parentPid.pid} exit`) });
 }

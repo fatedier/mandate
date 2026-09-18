@@ -9,6 +9,7 @@ import type {
 import { newId } from "../../platform/ids.js";
 import { redactSecrets } from "../../platform/text/text.js";
 import { limitToolText } from "./tool-result-format.js";
+import type { SqlValue } from "../../platform/db/sql-value.js";
 
 type ChatHistoryTimePreset = "last7d" | "last30d" | "last90d" | "projectLifetime" | "all";
 
@@ -634,7 +635,7 @@ export class AgentHistoryStore {
     // call site pinned the sentinel. A feature caller can never reach the
     // sentinel, so its rows stay inside its own project.
     const where: string[] = ["and e.project_id = ?"];
-    const params: unknown[] = [input.projectId];
+    const params: SqlValue[] = [input.projectId];
     // The joins above are LEFT so global entries survive them. Keep the old
     // INNER JOIN meaning for every other entry: it must still resolve to a real
     // project, and to a real feature. Only a global entry may have neither.
@@ -823,7 +824,7 @@ export class AgentHistoryStore {
   private readMessageRows(
     threadId: string,
     seqPredicate: string,
-    seqParams: unknown[],
+    seqParams: SqlValue[],
     limit: number,
     order: "asc" | "desc",
     timeRange: ResolvedChatHistoryTimeRange,
@@ -1362,7 +1363,7 @@ function buildFtsQuery(query: string): string {
 
 function timeRangeMessageFilter(timeRange: ResolvedChatHistoryTimeRange) {
   const where: string[] = [];
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
   if (timeRange.since) {
     where.push("and m.created_at >= ?");
     params.push(timeRange.since);

@@ -207,3 +207,25 @@ test("an empty window says so instead of rendering a headless table", async () =
   expect(page.querySelectorAll("table").length).toBe(0);
   expect(page.textContent).toContain("No calls in this window.");
 });
+
+test("the table has a label-micro head row on the panel and no card wrapper", async () => {
+  const page = await render([group("a", { failed: 3, calls: 10 })]);
+  const head = page.querySelector('[data-slot="table-head"]')!;
+  expect(head === null).toBe(false);
+  expect(head.querySelector("th")!.className.split(/\s+/)).toContain("label-micro");
+  expect(page.innerHTML.includes("bg-card")).toBe(false);
+  const failed = page.querySelector('[data-col="failed"][data-alert="true"]')!;
+  expect(failed === null).toBe(false);
+  expect(failed.className.split(/\s+/)).toContain("text-destructive");
+});
+
+test("cells pad 8px so a two-line row lands on the 52px pitch the h-13 floor gives a one-line row", async () => {
+  const page = await render([group("a")]);
+  const cells = Array.from(page.querySelectorAll("tbody tr td"));
+  expect(cells.length).toBeGreaterThan(1);
+  for (const td of cells) {
+    const tokens = td.className.split(/\s+/);
+    expect(tokens).toContain("py-2");
+    expect(tokens).not.toContain("py-2.5");
+  }
+});

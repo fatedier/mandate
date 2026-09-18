@@ -78,7 +78,7 @@ function mockConfig(): SettingsConfigResponse {
 async function withConfigFetch(run: () => Promise<void>, status = 200): Promise<void> {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () =>
-    status === 200 ? jsonResponse(mockConfig()) : jsonResponse({ ok: false }, status)) as typeof fetch;
+    status === 200 ? jsonResponse(mockConfig()) : jsonResponse({ ok: false }, status)) as unknown as typeof fetch;
   try {
     await run();
   } finally {
@@ -134,11 +134,13 @@ test("no pane narrows its own content — one width for every tab", async () => 
   });
 });
 
-test("the page keeps only the narrow-screen tab strip; the rail lives in the sidebar now", async () => {
+test("with the sidebar's rail visible the page carries no section nav of its own", async () => {
   await withConfigFetch(async () => {
     const el = render(<SettingsPage />, "/settings?tab=general");
     await settle();
-    expect(el.querySelectorAll("nav[aria-label='Settings sections']").length).toBe(1);
+    // At the 50/50 split the old width rule (<40rem) showed the rail and an
+    // in-page strip together; the strip now keys on the rail being gone.
+    expect(el.querySelectorAll("nav[aria-label='Settings sections']").length).toBe(0);
   });
 });
 
@@ -147,11 +149,11 @@ test("the tab strip stays reachable when the sidebar is collapsed", async () => 
     act(() => useUIStore.setState({ sidebarCollapsed: true }));
     const el = render(<SettingsPage />, "/settings?tab=general");
     await settle();
-    // The tab strip specifically (it carries the border-b underline), not the
-    // legacy rail that shares the aria-label until the rail is removed.
-    const strip = Array.from(el.querySelectorAll("nav[aria-label='Settings sections']"))
-      .find((n) => n.className.includes("border-b"));
-    expect(strip).toBeTruthy();
+    // The strip is the shipped pill tabs (a nav), never the old underline tabs.
+    const strip = el.querySelector("nav[aria-label='Settings sections']");
+    expect(strip === null).toBe(false);
+    expect(strip!.getAttribute("data-slot")).toBe("page-tabs");
     expect(strip!.className.includes("@[40rem]:hidden")).toBe(false);
+    expect(el.innerHTML.includes("border-b-2")).toBe(false);
   });
 });

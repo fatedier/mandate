@@ -40,7 +40,7 @@ test("patchNeedsUser applies the returned item", async () => {
   useWorkItemsStore.getState().upsert(makeItem({ id: "wi-ack", needsUser: "review" }));
   globalThis.fetch = (async () => new Response(JSON.stringify({
     item: makeItem({ id: "wi-ack", needsUser: null, title: "Acked" })
-  }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+  }), { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
 
   await useWorkItemsStore.getState().patchNeedsUser("wi-ack", null);
 
@@ -76,7 +76,7 @@ function deferResponses() {
   const pending: Array<(body: unknown) => void> = [];
   globalThis.fetch = (() => new Promise<Response>((resolve) => {
     pending.push((body) => resolve(Response.json(body)));
-  })) as typeof fetch;
+  })) as unknown as typeof fetch;
   return pending;
 }
 

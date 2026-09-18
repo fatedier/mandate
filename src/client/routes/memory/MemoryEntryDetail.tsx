@@ -68,7 +68,7 @@ export function MemoryDetailDialog({
             >
               {/* Prose, not a monospace block: these are paragraphs of English
                   and Chinese. Mono is this app's signal for machine ids. */}
-              <p className="whitespace-pre-wrap rounded-sm border border-border-soft bg-card/40 px-3 py-2.5 text-sm leading-relaxed text-foreground/90">
+              <p className="whitespace-pre-wrap rounded-sm border border-border-soft bg-panel px-3 py-2.5 text-sm leading-relaxed text-foreground/90">
                 {entry.content}
               </p>
             </Section>
@@ -146,23 +146,11 @@ function Section({
   );
 }
 
+/** The kind is a category, not a status, so it takes the neutral pill: the
+ *  word carries the distinction, and colour stays for things that need
+ *  acting on. */
 export function KindBadge({ kind }: { kind: MemoryEntryDto["kind"] }) {
-  const tone: Record<MemoryEntryDto["kind"], string> = {
-    episodic: "border-phase-design/30 bg-phase-design/10 text-phase-design",
-    semantic: "border-phase-working/30 bg-phase-working/10 text-phase-working",
-    preference: "border-phase-done/30 bg-phase-done/10 text-phase-done",
-    procedural: "border-amber/30 bg-amber/10 text-amber"
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex h-5 shrink-0 items-center rounded-xs border px-1.5 label-micro",
-        tone[kind]
-      )}
-    >
-      {kind}
-    </span>
-  );
+  return <span className="pill pill-neutral">{kind}</span>;
 }
 
 export function ScopeBadge({

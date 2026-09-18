@@ -27,6 +27,8 @@ import {
 } from "./terminal-helpers";
 import { TerminalHeader } from "./TerminalHeader";
 import { TerminalShell } from "./TerminalShell";
+import { PaneSwitcherSheet } from "./PaneSwitcherSheet";
+import { paneHrefFor } from "./pane-href";
 
 export function TerminalPage() {
   const params = useParams<{
@@ -74,6 +76,19 @@ export function TerminalPage() {
   // Session-rooted paths look up projectId from the pane DTO (it's null for
   // unmanaged tmux sessions). Managed routes have it directly from URL params.
   const sessionProjectId = isStandalone ? standalone.projectId : (project?.id ?? null);
+  // Session-rooted routes name the session/window in the URL; feature routes
+  // know them through the project and feature.
+  const sessionName = isStandalone ? (params.sessionName ?? "") : (project?.tmuxSessionName ?? "");
+  const windowName = isStandalone ? (params.windowName ?? "") : (feature?.tmuxWindowName ?? "");
+  const rememberPane = useUIStore((s) => s.rememberPane);
+  useEffect(() => {
+    if (!paneId || !sessionName || !windowName) return;
+    rememberPane({ sessionName, windowName, paneId });
+  }, [rememberPane, sessionName, windowName, paneId]);
+  // Phone-only pane switcher (the header title opens it). Closed on every
+  // route change so a pick that navigates never leaves a stale open sheet.
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  useEffect(() => { setSwitcherOpen(false); }, [paneId]);
   const {
     ctrlActive: mobileCtrlActive,
     altActive: mobileAltActive,
@@ -283,7 +298,7 @@ export function TerminalPage() {
     const message = stillLoading ? "Loading…" : "Pane no longer exists";
     return (
       <div className="flex flex-col h-full min-h-0 bg-terminal-bg">
-        <header className="flex items-center gap-1 px-3 py-2 border-b border-border-soft bg-card">
+        <header className="flex items-center gap-1 px-3 py-2 border-b border-border-soft bg-panel">
           <span className="text-sm text-muted-foreground">{message}</span>
         </header>
       </div>
@@ -332,6 +347,12 @@ export function TerminalPage() {
   };
 
   const path = pane ? (compactPath(pane.currentPath) || pane.currentPath || "") : "";
+  const paneIndex = pane?.paneIndex ?? null;
+  // Feature windows keep the feature route when the page was entered through
+  // one (breadcrumb stays project / feature / pane); everything else takes the
+  // session-rooted route, which works for unmanaged sessions too.
+  const hrefFor = (s: string, w: string, p: string) =>
+    paneHrefFor({ isStandalone, project, sessionName: s, windowName: w, paneId: p });
   const statusOk = session.status === "connected";
   const statusDotClass =
     session.status === "connected" ? "bg-green" :
@@ -371,6 +392,9 @@ export function TerminalPage() {
         onToggleBrowserFit={toggleBrowserFit}
         onToggleKeysVisible={() => setKeysVisible((v) => !v)}
         onRefresh={session.sendRefresh}
+        switcher={isMobile && sessionName && windowName
+          ? { windowName, paneIndex, open: switcherOpen, onToggle: () => setSwitcherOpen((v) => !v) }
+          : undefined}
       />
       <TerminalShell
         ref={terminalShellRef}
@@ -387,6 +411,15 @@ export function TerminalPage() {
         onCopySelection={handleCopySelection}
         onBeginSelectionHandleDrag={beginSelectionHandleDrag}
       />
+      {isMobile && sessionName && (
+        <PaneSwitcherSheet
+          open={switcherOpen}
+          onOpenChange={setSwitcherOpen}
+          sessionName={sessionName}
+          currentPaneId={paneId}
+          hrefFor={hrefFor}
+        />
+      )}
       {isMobile && keysVisible && (
         <div ref={mobileInputBarRef} className="absolute inset-x-0 bottom-0 z-40">
           <MobileInputBar

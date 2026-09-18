@@ -168,8 +168,7 @@ describe("sorting", () => {
     try {
       const res = listMemoryEntries(
         db,
-        { sort: "; drop table memory_entries --" as never, status: "available" },
-        NOW
+        { sort: "; drop table memory_entries --" as never, status: "available" }
       );
       expect(res.entries.length).toBe(4);
     } finally {

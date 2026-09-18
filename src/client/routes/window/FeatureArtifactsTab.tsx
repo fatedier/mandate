@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router";
 import { useWorkItemsStore } from "@/store/work-items";
 import { api } from "@/lib/api-paths";
 import { RelativeTime } from "@/components/RelativeTime";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { CanvasListItemDto, CanvasUpdatedPayload, FeatureCanvasesResponse } from "@shared/api-contracts";
 
 interface Props { featureId: string; }
@@ -25,6 +27,9 @@ export function FeatureArtifactsTab({ featureId }: Props) {
     canvases: CanvasListItemDto[] | null;
     error: string | null;
   } | null>(null);
+  // Bumped by the Retry button; the fetch effect keys on it so a manual retry
+  // re-runs the same debounced schedule the listeners use.
+  const [retryToken, setRetryToken] = useState(0);
   const canvases = result?.featureId === featureId ? result.canvases : null;
   const error = result?.featureId === featureId ? result.error : null;
   const navigate = useNavigate();
@@ -87,7 +92,7 @@ export function FeatureArtifactsTab({ featureId }: Props) {
       window.removeEventListener("mandate:canvas-updated", handler);
       window.removeEventListener("mandate:sse-open", onReconnect);
     };
-  }, [featureId]);
+  }, [featureId, retryToken]);
 
   const open = (id: string) => {
     navigate(`/canvas/${id}`, { state: { backgroundLocation: location } });
@@ -95,57 +100,60 @@ export function FeatureArtifactsTab({ featureId }: Props) {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-        {error}
+      <div data-slot="canvas-list-failed" className="flex items-center gap-3 py-2 text-xs text-faint">
+        <span className="min-w-0 flex-1 truncate" title={error}>{error}</span>
+        <Button variant="ghost" size="xs" aria-label="Retry canvases" onClick={() => { setResult(null); setRetryToken((t) => t + 1); }}>Retry</Button>
       </div>
     );
   }
 
   if (!canvases) {
     return (
-      <div className="rounded-lg border border-border-soft bg-muted/30 p-3 text-sm text-muted-foreground">
-        Loading…
+      <div data-slot="canvas-list" aria-busy="true" aria-label="Loading canvases" className="overflow-hidden rounded-lg border border-border-soft bg-panel">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex h-13 items-center gap-3 border-t border-border-soft px-3.5 first:border-t-0">
+            <Skeleton className="size-4 rounded-xs bg-sel" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-48 rounded-xs bg-sel" />
+              <Skeleton className="h-3 w-24 rounded-xs bg-sel" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (canvases.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border-soft px-3 py-10 text-center text-sm text-muted-foreground">
+      <p data-slot="canvas-empty" className="m-0 py-2 text-xs text-faint">
         No canvases yet. The agent's canvases for this feature will show up here.
-      </div>
+      </p>
     );
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul data-slot="canvas-list" className="overflow-hidden rounded-lg border border-border-soft bg-panel">
       {canvases.map((canvas) => {
         const isDashboard = canvas.id === boundCanvasId;
         return (
-          <li key={canvas.id}>
+          <li key={canvas.id} data-slot="canvas-row" className="border-t border-border-soft first:border-t-0">
             <button
               type="button"
               onClick={() => open(canvas.id)}
-              className="group flex w-full items-center gap-3 rounded-lg border border-border-soft bg-card px-3 py-2.5 text-left transition hover:border-border hover:bg-muted/40"
+              className="group flex h-13 w-full items-center gap-3 px-3.5 text-left transition-colors hover:bg-sel"
               aria-label={`Open canvas: ${canvas.title}`}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border-soft bg-muted/40 text-muted-foreground">
-                <FileText className="h-4 w-4" />
-              </span>
+              <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">{canvas.title}</span>
-                  {isDashboard && (
-                    <span className="shrink-0 rounded-xs border border-primary/30 bg-primary/10 px-1.5 py-0.5 label-micro text-primary">
-                      Dashboard
-                    </span>
-                  )}
+                  <span className="min-w-0 truncate text-xs font-medium text-foreground">{canvas.title}</span>
+                  {isDashboard && <span className="pill pill-neutral">Dashboard</span>}
                 </span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
+                <span className="mt-0.5 block text-2xs text-faint">
                   Updated <RelativeTime value={canvas.updatedAt} />
                 </span>
               </span>
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-foreground" />
+              <ArrowUpRight className="size-3.5 shrink-0 text-faint transition-colors group-hover:text-foreground" aria-hidden />
             </button>
           </li>
         );

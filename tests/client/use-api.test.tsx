@@ -13,7 +13,7 @@ async function withRequest(
   const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousAct = environment.IS_REACT_ACT_ENVIRONMENT;
   environment.IS_REACT_ACT_ENVIRONMENT = true;
-  globalThis.fetch = fetchResponse as typeof fetch;
+  globalThis.fetch = fetchResponse as unknown as typeof fetch;
   useSnapshotStore.setState({ snapshot: null, banner: "", connection: "open" });
   let request!: ReturnType<typeof useApi>;
   function Probe() { request = useApi(); return null; }

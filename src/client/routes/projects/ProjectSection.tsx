@@ -4,6 +4,7 @@ import type { Project } from "@/store/projects";
 import { Button } from "@/components/ui/button";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api-paths";
+import { cn } from "@/lib/utils";
 import { FeatureCard } from "@/routes/projects/FeatureCard";
 import { NewFeatureDialog } from "@/routes/projects/NewFeatureDialog";
 import { ProjectActionsMenu } from "@/routes/projects/ProjectActionsMenu";
@@ -38,7 +39,7 @@ export function ProjectSection({
   const patchNeedsUser = useWorkItemsStore((s) => s.patchNeedsUser);
   const togglePin = useProjectsStore((s) => s.togglePin);
   const openDrawerWithWorkItemRef = useAgentChatStore((s) => s.openDrawerWithWorkItemRef);
-  /** Click "💬 chat" on a card → open the overview chat drawer with a
+  /** Click the Chat action on a row → open the manager chat drawer with a
    *  removable ref pill above the input. User types their question and
    *  sends; the message carries metadata.workItemRef so the chat renders
    *  a WorkItemMessageBlock for it. */
@@ -55,9 +56,6 @@ export function ProjectSection({
     return categorizeFeatures(project.features, map);
   }, [project.features, items]);
 
-  const showTopZone = buckets.pinned.length + buckets.attention.length > 0;
-  const showMainZone = buckets.working.length + buckets.untracked.length > 0;
-
   const restore = async () => {
     setRestoring(true);
     try {
@@ -67,132 +65,84 @@ export function ProjectSection({
     }
   };
 
+  const ordered = [
+    ...buckets.pinned.map(({ feature, item }) => ({ feature, item, variant: item ? ("top" as const) : ("untracked" as const) })),
+    ...buckets.attention.map(({ feature, item }) => ({ feature, item, variant: "top" as const })),
+    ...buckets.working.map(({ feature, item }) => ({ feature, item, variant: "passive" as const })),
+    ...buckets.untracked.map(({ feature }) => ({ feature, item: null, variant: "untracked" as const }))
+  ];
+  const empty = project.features.length === 0;
+
   return (
-    <section className="group/section flex flex-col gap-3">
-      {/* A hairline under the project name is what makes the section read as a
-          container. Without it the header was just another row at the same
-          weight as the card titles below it, so where one project ended and the
-          next began had to be inferred from whitespace alone. */}
-      <header className="flex items-center justify-between gap-3 border-b border-border-soft pb-2">
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-2">
-            <h2
-              className="text-lg font-semibold truncate"
-              title={project.workingDir}
-            >
-              {project.name}
-            </h2>
-            <span className="num shrink-0 text-2xs text-chrome" title="Features in this project">
-              {project.features.length}
-            </span>
-            {tmuxStatus === "gone" && (
-              <span
-                className="flex items-center gap-1 text-xs text-amber"
-                title={project.ownership === "adopted"
-                  ? "Original tmux session is gone — adopt link broken"
-                  : "tmux session was killed externally — click Restore to rebuild"}
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                session missing
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {tmuxStatus === "gone" && project.ownership === "app" && (
-            <Button variant="outline" size="sm" onClick={restore} disabled={restoring}>
-              <RotateCw className={`h-3.5 w-3.5 ${restoring ? "animate-spin" : ""}`} />
-              {restoring ? "Restoring…" : "Restore"}
-            </Button>
-          )}
-          <NewFeatureDialog projectId={project.id} projectName={project.name} isGit={project.isGit} />
-          <ProjectActionsMenu
-            projectId={project.id}
-            projectName={project.name}
-            hasTmuxSession={tmuxStatus !== "gone"}
-            canMoveUp={canMoveUp}
-            canMoveDown={canMoveDown}
-            onMoveToTop={onMoveToTop}
-            onMoveUp={onMoveUp}
-            onMoveDown={onMoveDown}
-          />
-        </div>
+    <section className="flex flex-col gap-1.5">
+      {/* One 32px line: the name is the only heavy element; everything after it
+          is furniture. An empty project keeps only this line — no container. */}
+      <header data-slot="project-header" className="flex h-8 items-center gap-2">
+        <h2 className="min-w-0 truncate text-xs font-semibold text-foreground" title={project.workingDir}>
+          {project.name}
+        </h2>
+        {!empty && (
+          <span data-slot="feature-count" className="num shrink-0 text-2xs text-faint" title="Features in this project">
+            {project.features.length}
+          </span>
+        )}
+        {empty && (
+          <span data-slot="project-empty" className="shrink-0 text-2xs text-faint">No features yet</span>
+        )}
+        {tmuxStatus === "gone" && (
+          <span
+            className="flex shrink-0 items-center gap-1 text-2xs text-amber"
+            title={project.ownership === "adopted"
+              ? "Original tmux session is gone — adopt link broken"
+              : "tmux session was killed externally — click Restore to rebuild"}
+          >
+            <AlertTriangle className="size-3.5" />
+            {/* The label text yields below md so the 32px line still fits a
+                360px phone with Restore + New feature + ⋯ beside it; the icon
+                and the wrapper's title keep the warning visible there. */}
+            <span className="hidden md:inline">session missing</span>
+          </span>
+        )}
+        <span className="flex-1" />
+        {tmuxStatus === "gone" && project.ownership === "app" && (
+          <Button variant="ghost" size="xs" onClick={restore} disabled={restoring} className="text-chrome hover:text-foreground">
+            <RotateCw className={cn("size-3.5", restoring && "animate-spin")} />
+            {restoring ? "Restoring…" : "Restore"}
+          </Button>
+        )}
+        <NewFeatureDialog projectId={project.id} projectName={project.name} isGit={project.isGit} />
+        <ProjectActionsMenu
+          projectId={project.id}
+          projectName={project.name}
+          hasTmuxSession={tmuxStatus !== "gone"}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+          onMoveToTop={onMoveToTop}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+        />
       </header>
-      {project.features.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No features yet.</p>
-      ) : (
-        <>
-          {showTopZone && (
-            <div className="grid gap-2" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
-              {buckets.pinned.map(({ feature, item }) => (
-                item ? (
-                  <FeatureCard
-                    key={feature.id} variant="top"
-                    projectSlug={project.tmuxSessionName} feature={feature} item={item}
-                    onTogglePin={() => togglePin(feature.id)}
-                    onAck={() => void patchNeedsUser(item.id, null)}
-                    onPromote={() => startChatAboutItem({ id: item.id, title: item.title })}
-                  />
-                ) : (
-                  <FeatureCard
-                    key={feature.id} variant="untracked"
-                    projectSlug={project.tmuxSessionName} feature={feature} item={null}
-                  />
-                )
-              ))}
-              {/* Flagged features stay INSIDE their project section — sorted
-                  most urgent first by categorizeFeatures. They never teleport
-                  to a global strip; the sidebar Home badge carries the
-                  cross-project count. */}
-              {buckets.attention.map(({ feature, item }) => (
+      {!empty && (
+        <ul data-slot="feature-list" className="overflow-hidden rounded-lg border border-border-soft bg-panel">
+          {/* Flagged features stay INSIDE their project section — most urgent
+              first by categorizeFeatures; they never teleport to a global strip.
+              The sidebar Home badge carries the cross-project count (§3.2). */}
+          {ordered.map(({ feature, item, variant }) => (
+            <li key={feature.id} className="border-t border-border-soft first:border-t-0">
+              {variant === "untracked" || !item ? (
+                <FeatureCard variant="untracked" projectSlug={project.tmuxSessionName} feature={feature} item={null} />
+              ) : (
                 <FeatureCard
-                  key={feature.id} variant="top"
+                  variant={variant}
                   projectSlug={project.tmuxSessionName} feature={feature} item={item}
                   onTogglePin={() => togglePin(feature.id)}
-                  onAck={() => void patchNeedsUser(item.id, null)}
+                  onAck={variant === "top" ? () => void patchNeedsUser(item.id, null) : undefined}
                   onPromote={() => startChatAboutItem({ id: item.id, title: item.title })}
                 />
-              ))}
-            </div>
-          )}
-          {showMainZone && (
-            <>
-              {/* Divider between the attention zone and the steady-state zone.
-                  It is a label, not a heading — it gets a rule so it reads as a
-                  boundary rather than a third heading level competing with the
-                  project name above it. */}
-              <div className="flex items-center gap-2 pt-1">
-                <span className="label-micro text-chrome">Running</span>
-                <span className="num font-mono text-2xs text-chrome">{buckets.working.length}</span>
-                <span aria-hidden className="h-px flex-1 bg-border-soft" />
-              </div>
-              {/* Frameless (see PassiveFeatureCard) but still a responsive grid.
-                  Dropping the frame and dropping the multi-column layout are
-                  separate decisions and only the first one was intended: these
-                  items are compact and numerous, so a wide window should show
-                  three across rather than one long column. */}
-              <div
-                className="grid gap-x-4 gap-y-1"
-                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(380px, 100%), 1fr))" }}
-              >
-                {buckets.working.map(({ feature, item }) => (
-                  <FeatureCard
-                    key={feature.id} variant="passive"
-                    projectSlug={project.tmuxSessionName} feature={feature} item={item}
-                    onTogglePin={() => togglePin(feature.id)}
-                    onPromote={() => startChatAboutItem({ id: item.id, title: item.title })}
-                  />
-                ))}
-                {buckets.untracked.map(({ feature }) => (
-                  <FeatureCard
-                    key={feature.id} variant="untracked"
-                    projectSlug={project.tmuxSessionName} feature={feature} item={null}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

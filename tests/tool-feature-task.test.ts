@@ -611,6 +611,7 @@ test("task_notify_caller with kind=blocked escalates with signal=blocked", async
     const evt = events[0]!;
     expect(evt.content.type).toBe("feature_event");
     expect(evt.content.kind).toBe("escalation");
+    if (evt.content.kind !== "escalation") throw new Error("expected an escalation event");
     expect(evt.content.signal).toBe("blocked");
     expect(evt.content.summary).toBe("Waiting for approval");
     expect(evt.content.workItemId).toBe(workItem.id);

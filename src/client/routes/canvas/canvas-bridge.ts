@@ -14,6 +14,8 @@ export interface CanvasHeightMessage {
   type: "mandate.canvas.height";
   canvasId: string;
   value: number;
+  /** documentElement.scrollWidth — the width the canvas was laid out for. */
+  width?: number;
 }
 
 type CanvasTheme = "dark" | "light";
@@ -448,12 +450,21 @@ function canvasBridgeScript(canvasId: string): string {
     // 'why is there still a scrollbar inside?' bug for auto-resizing iframes.
     return Math.ceil(value) + 8;
   };
+  const measureWidth = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    if (!body) return 0;
+    return Math.ceil(Math.max(root.scrollWidth, body.scrollWidth));
+  };
   let lastHeight = -1;
+  let lastWidth = -1;
   const postHeight = () => {
     const value = measureHeight();
-    if (value <= 0 || value === lastHeight) return;
+    const width = measureWidth();
+    if (value <= 0 || (value === lastHeight && width === lastWidth)) return;
     lastHeight = value;
-    send({ type: "mandate.canvas.height", value });
+    lastWidth = width;
+    send({ type: "mandate.canvas.height", value, width });
   };
   // Initial measurement after first paint, plus a few retries while assets
   // (Tailwind styles, fonts, images) are still landing.

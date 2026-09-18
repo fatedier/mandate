@@ -5,6 +5,8 @@ import { CanvasStore } from "../src/server/modules/canvas/canvas-store.js";
 import { buildCanvasToolPacks } from "../src/server/modules/canvas/tool-packs.js";
 import { freshStoresEnv, seedFeature, seedProject } from "./helpers/fixtures.js";
 
+type CanvasResult = { ok: true; canvasId: string; path: string; title?: string } | { error: string };
+
 class CapturingSse {
   events: Array<{ name: string; data: any }> = [];
   emit(name: string, data: any) {
@@ -29,7 +31,7 @@ test("canvas_create stores a feature-scoped canvas without opening it", async ()
       sse: sse as any
     })[0];
     const create = pack.tools.find((tool) => tool.name === "canvas_create")!;
-    const result = await create.handler(
+    const result = (await create.handler(
       {
         title: "Implementation plan"
       },
@@ -44,7 +46,7 @@ test("canvas_create stores a feature-scoped canvas without opening it", async ()
         feature,
         project
       }
-    );
+    )) as CanvasResult;
 
     expect(result).toMatchObject({
       ok: true,
@@ -102,9 +104,9 @@ test("manager-created canvases notify lists without claiming a Worker owner", as
       scope: "manager", canvasStore: new CanvasStore(store.db, dir), sse: sse as any
     })[0]!.tools.find((tool) => tool.name === "canvas_create")!;
     for (const owner of [undefined, projectId]) {
-      const result = await create.handler({ title: "Manager artifact", ...(owner ? { projectId: owner } : {}) }, {
+      const result = (await create.handler({ title: "Manager artifact", ...(owner ? { projectId: owner } : {}) }, {
         threadId: thread.id, wakeId: "wake", scope: { kind: "manager", managerDir: "/tmp", projectWorkingDirs: [] }
-      });
+      })) as CanvasResult;
       expect(result).toMatchObject({ ok: true });
       if (!("ok" in result)) throw new Error("expected a created canvas");
       expect(sse.events.at(-1)).toEqual({ name: "canvasUpdated", data: { canvasId: result.canvasId, featureId: null } });
@@ -150,7 +152,7 @@ test("canvas_open navigates to an existing canvas", async () => {
     })[0];
     const open = pack.tools.find((tool) => tool.name === "canvas_open")!;
 
-    const result = await open.handler(
+    const result = (await open.handler(
       { canvasId: canvas.id },
       {
         threadId: thread.id,
@@ -161,7 +163,7 @@ test("canvas_open navigates to an existing canvas", async () => {
           projectWorkingDirs: []
         }
       }
-    );
+    )) as CanvasResult;
 
     expect(result).toMatchObject({
       ok: true,

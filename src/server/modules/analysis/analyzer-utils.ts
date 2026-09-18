@@ -25,9 +25,9 @@ export function isRecentOutput(changedAt: string | undefined, nowMs = Date.now()
 
 export function screenForAnalysis(text: unknown) {
   const lines = String(text ?? "").split("\n");
-  const kept = [];
-  const suggestions = [];
-  const footers = [];
+  const kept: string[] = [];
+  const suggestions: string[] = [];
+  const footers: string[] = [];
   let promptVisible = false;
 
   for (let index = 0; index < lines.length; index += 1) {

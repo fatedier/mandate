@@ -34,7 +34,11 @@ async function respond(page: Page, route: Route, response: Parameters<Route["ful
   }));
 }
 
-for (const mobile of [false, true]) {
+// Home rows carry the pin only for the pointer: on phones a passive row shows no
+// actions at all and the pin lives in the feature page's ⋯ menu (see the phone
+// test below). The desktop path still checks the aria-disabled guard on the
+// row button.
+for (const mobile of [false]) {
   test(`pin controls prevent overlapping saves and navigation on ${mobile ? "mobile" : "desktop"}`, async () => {
     const fixture = startWorkspaceFixture();
     const page = await browser.newPage({ viewport: { width: mobile ? 390 : 1280, height: 900 } });
@@ -75,6 +79,45 @@ for (const mobile of [false, true]) {
     }
   }, 15000);
 }
+
+test("pin controls on a phone go through the feature page's ⋯ menu and survive a failed save", async () => {
+  const fixture = startWorkspaceFixture();
+  const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
+  page.setDefaultTimeout(5000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const requests = await holdRequests(page, "**/api/features/zoom-worker/pin");
+  const openMenu = () => page.getByRole("button", { name: "Feature actions", exact: true }).click();
+  try {
+    await page.goto(`${fixture.baseUrl}${WORKER_PATH}`);
+    // A passive row on Home carries no pin on a phone.
+    await page.goto(`${fixture.baseUrl}/projects`);
+    await page.locator(`a[href="${WORKER_PATH}"]`).filter({ hasText: "Worker pane zoom" }).waitFor();
+    expect(await page.locator('button[aria-label="Pin to top"]:visible').count()).toBe(0);
+    await page.goto(`${fixture.baseUrl}${WORKER_PATH}`);
+    await openMenu();
+    await page.getByRole("menuitem", { name: "Pin to top" }).click();
+    const first = await requests.next();
+    expect(first.request().postDataJSON()).toEqual({ pinned: true });
+    expect(new URL(page.url()).pathname).toBe(WORKER_PATH);
+    const savedTime = "2026-09-15T00:00:00.000Z";
+    await respond(page, first, { json: { feature: { pinnedAt: savedTime, updatedAt: savedTime } } });
+    await openMenu();
+    await page.getByRole("menuitem", { name: "Unpin" }).click();
+    const second = await requests.next();
+    expect(second.request().postDataJSON()).toEqual({ pinned: false });
+    await respond(page, second, { status: 503, json: { error: "Unavailable" } });
+    // The failed unpin leaves the feature pinned.
+    await openMenu();
+    await page.getByRole("menuitem", { name: "Unpin" }).waitFor();
+    await page.keyboard.press("Escape");
+    expect(requests.count()).toBe(2);
+    expect(errors).toEqual([]);
+  } finally {
+    await page.close();
+    fixture.stop();
+  }
+}, 15000);
 
 test("project reorder locks all move controls and preserves incoming Workers on failure", async () => {
   const fixture = startWorkspaceFixture();

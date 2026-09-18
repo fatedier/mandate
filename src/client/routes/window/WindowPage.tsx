@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useSnapshotStore } from "@/store/snapshot";
 import { useProjectsStore, findFeatureBySlug } from "@/store/projects";
 import type { Feature, Project } from "@/store/projects";
@@ -10,21 +10,23 @@ import { parseTmuxLayout } from "@/lib/tmux";
 import { useUiPageSummary } from "@/lib/ui-context";
 import { useFeatureWakeActive } from "@/store/wake-activity";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/shell/PageHeader";
+import { Section } from "@/components/Section";
 import type { SnapshotWindow } from "@/lib/snapshot-types";
 import { selectSnapshotWindow } from "@/lib/snapshot-selectors";
+import { PaneHeaderActions, PaneHeaderTitle } from "@/shell/pane-header-slots";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
-import { WindowPageHeader } from "@/routes/window/WindowPageHeader";
-import { WindowPageActions } from "@/routes/window/WindowPageActions";
+import { FeatureTitle } from "./WindowPageHeader";
+import { FeatureActionsMenu } from "./FeatureActionsMenu";
 import { useWorkItemsStore } from "@/store/work-items";
 import { FeatureWorkItemDashboard } from "./FeatureWorkItemDashboard";
 import { ActiveWorkerCanvas } from "./WorkerCanvasCache";
 import { FeatureArtifactsTab } from "./FeatureArtifactsTab";
 import { ChangesTab } from "./changes/ChangesTab";
+import { ChangesSummaryLine } from "./ChangesSummaryLine";
 import { shouldIgnoreGlobalEscape } from "@/lib/keyboard-targets";
 import { TmuxLayoutBoard } from "@/routes/window/TmuxLayoutBoard";
 import { PaneDetail } from "@/routes/window/PaneDetail";
-import { ArchiveFeatureButton } from "@/routes/window/ArchiveFeatureButton";
 import { toast } from "sonner";
 
 export function WindowPage() {
@@ -48,8 +50,9 @@ export function WindowPage() {
 
   if (!project || !feature) {
     return (
-      <div className="flex flex-col gap-4 p-3 md:p-6 max-w-[1120px] group-data-[pane-mode=worker]/workspace:max-w-none w-full mx-auto">
-        <PageHeader title="Feature not found" subtitle="This project or feature has been archived." />
+      <div className="flex flex-col gap-1 w-full mx-auto max-w-[1280px] px-4 pt-1 pb-6 md:px-7 group-data-[pane-mode=worker]/workspace:max-w-none">
+        <h1 className="text-sm font-semibold">Feature not found</h1>
+        <p className="text-sm text-faint">This project or feature has been archived.</p>
       </div>
     );
   }
@@ -67,9 +70,12 @@ function WindowBody({ project, feature, onClose }: WindowBodyProps) {
   const windowData = useSnapshotStore((s) => (
     selectSnapshotWindow(s.snapshot, project.tmuxSessionName, feature.tmuxWindowName)
   ));
+  const togglePin = useProjectsStore((s) => s.togglePin);
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   const aggregate = windowData?.aggregate;
+  const paneCount = windowData?.panes?.length ?? 0;
   const workItem = useWorkItemsStore((s) => {
     if (!feature?.id) return null;
     for (const it of s.items.values()) {
@@ -126,8 +132,8 @@ function WindowBody({ project, feature, onClose }: WindowBodyProps) {
 
   if (windowData === undefined) {
     return (
-      <div className="flex flex-col gap-4 p-3 md:p-6 max-w-[1120px] group-data-[pane-mode=worker]/workspace:max-w-none w-full mx-auto">
-        <PageHeader title="Loading…" />
+      <div className="flex flex-col gap-4 w-full mx-auto max-w-[1280px] px-4 pt-1 pb-6 md:px-7 group-data-[pane-mode=worker]/workspace:max-w-none">
+        <p className="text-sm text-faint">Loading…</p>
       </div>
     );
   }
@@ -142,48 +148,61 @@ function WindowBody({ project, feature, onClose }: WindowBodyProps) {
     );
   }
 
-  // The branch chip only earns its place when the branch name carries
-  // information beyond the feature slug the breadcrumb already shows.
-  // Default worktree branches are mechanical slug derivations
-  // (research/system-prune-api-v2 vs research-system-prune-api-v2) —
-  // normalize away separators and hide the chip when they collapse equal.
   return (
     <div
       className={cn(
-        "flex flex-col p-3 md:p-6 w-full mx-auto gap-4 group-data-[pane-mode=worker]/workspace:max-w-none",
+        "flex flex-col w-full mx-auto gap-4 px-4 pt-1 pb-6 md:px-7 group-data-[pane-mode=worker]/workspace:max-w-none",
         // Diffs are the one surface that earns the full viewport: side-by-side
         // columns starve inside the reading-width cap the other tabs keep.
-        activeTab === "changes" ? "max-w-none" : "max-w-[1120px]",
+        activeTab === "changes" ? "max-w-none" : "max-w-[1280px]",
         activeTab === "overview" && workItem?.canvasId && "pb-4 md:pb-4"
       )}
     >
-      <PageHeader
-        title={<WindowPageHeader window={windowData} workItem={workItem} active={wakeActive || windowActive} />}
-        trailing={
-          // Order: the action you actually use, then the overflow, then close.
-          // Archive used to lead the cluster, which put the irreversible thing
-          // first in reading order.
-          <div className="flex items-center gap-1 flex-wrap justify-end">
-            <WindowPageActions window={windowData} onClose={onClose}>
-              <ArchiveFeatureButton
-                featureId={feature.id}
-                featureName={feature.name}
-                featureMode={feature.mode}
-                branch={feature.branch}
-                hasWorktree={!!feature.worktreePath}
-              />
-            </WindowPageActions>
-          </div>
-        }
-      />
+      {/* Desktop: title and actions live in the left pane's 52px header.
+          Mobile keeps an in-page row — its top bar is the breadcrumb. */}
+      {isMobile ? (
+        <div className="flex items-center gap-2 px-1">
+          <FeatureTitle window={windowData} workItem={workItem} active={wakeActive || windowActive} />
+          <FeatureActionsMenu
+            featureId={feature.id}
+            featureName={feature.name}
+            featureMode={feature.mode}
+            branch={feature.branch}
+            hasWorktree={!!feature.worktreePath}
+            window={windowData}
+            pinned={!!feature.pinnedAt}
+            onTogglePin={() => void togglePin(feature.id)}
+            onClose={onClose}
+          />
+        </div>
+      ) : (
+        <>
+          <PaneHeaderTitle>
+            <FeatureTitle window={windowData} workItem={workItem} active={wakeActive || windowActive} />
+          </PaneHeaderTitle>
+          <PaneHeaderActions>
+            <FeatureActionsMenu
+              featureId={feature.id}
+              featureName={feature.name}
+              featureMode={feature.mode}
+              branch={feature.branch}
+              hasWorktree={!!feature.worktreePath}
+              window={windowData}
+              pinned={!!feature.pinnedAt}
+              onTogglePin={() => void togglePin(feature.id)}
+              onClose={onClose}
+            />
+          </PaneHeaderActions>
+        </>
+      )}
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border-soft">
+      <div className="flex h-9 items-center gap-0.5" role="tablist">
         <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")}>
           Overview
         </TabButton>
         <TabButton active={activeTab === "artifacts"} onClick={() => setActiveTab("artifacts")}>
-          Artifacts
+          Canvases
         </TabButton>
         {feature.branch ? (
           <TabButton active={activeTab === "changes"} onClick={() => setActiveTab("changes")}>
@@ -202,6 +221,12 @@ function WindowBody({ project, feature, onClose }: WindowBodyProps) {
       {activeTab === "overview" && feature.id && (
         <>
           <FeatureWorkItemDashboard featureId={feature.id} />
+          {feature.branch && (
+            <ChangesSummaryLine
+              featureId={feature.id}
+              workItemStamp={workItem ? `${workItem.phase}:${workItem.needsUser ?? ""}` : ""}
+            />
+          )}
           {workItem?.canvasId && <ActiveWorkerCanvas featureId={feature.id} canvasId={workItem.canvasId} />}
         </>
       )}
@@ -214,41 +239,43 @@ function WindowBody({ project, feature, onClose }: WindowBodyProps) {
         <ChangesTab key={feature.id} featureId={feature.id} initialFile={searchParams.get("file")} />
       ) : null}
       {activeTab === "terminal" && (
-        <section className="flex flex-col gap-3" aria-label="Panes">
-          <h4 className="label-micro text-chrome m-0">Panes</h4>
+        <Section
+          title="Panes"
+          meta={`${paneCount} pane${paneCount === 1 ? "" : "s"}`}
+          trailing={<span className="text-2xs text-faint">tmux layout</span>}
+          panel={false}
+          aria-label="Panes"
+        >
           <TmuxPanes
             window={windowData}
             featureId={feature.id}
             projectSlug={project.tmuxSessionName}
             featureSlug={feature.tmuxWindowName}
           />
-        </section>
+        </Section>
       )}
     </div>
   );
 }
 
 function MissingWindowState({ project, feature, onClose }: WindowBodyProps) {
+  const togglePin = useProjectsStore((s) => s.togglePin);
   return (
-    <div className="flex flex-col gap-4 p-3 md:p-6 max-w-[1120px] group-data-[pane-mode=worker]/workspace:max-w-none w-full mx-auto">
-      <PageHeader
-        title="Window not found"
-        trailing={
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            <ArchiveFeatureButton
-              featureId={feature.id}
-              featureName={feature.name}
-              featureMode={feature.mode}
-              branch={feature.branch}
-              hasWorktree={!!feature.worktreePath}
-            />
-            <Button variant="outline" size="icon" aria-label="Close window page" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        }
-      />
-      <div className="rounded-lg border border-border-soft bg-card p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 w-full mx-auto max-w-[1280px] px-4 pt-1 pb-6 md:px-7 group-data-[pane-mode=worker]/workspace:max-w-none">
+      <div className="flex items-center gap-2">
+        <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">Window not found</h1>
+        <FeatureActionsMenu
+          featureId={feature.id}
+          featureName={feature.name}
+          featureMode={feature.mode}
+          branch={feature.branch}
+          hasWorktree={!!feature.worktreePath}
+          pinned={!!feature.pinnedAt}
+          onTogglePin={() => void togglePin(feature.id)}
+          onClose={onClose}
+        />
+      </div>
+      <div className="rounded-lg border border-border-soft bg-panel p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-foreground">tmux window is missing</div>
           <div className="text-xs text-muted-foreground mt-1">
@@ -318,7 +345,7 @@ interface EmptyPanesStateProps {
 
 function EmptyPanesState({ featureId, projectSlug, featureSlug }: EmptyPanesStateProps) {
   return (
-    <div className="rounded-lg border border-border-soft bg-card p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-lg border border-border-soft bg-panel p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="text-sm font-semibold text-foreground">No panes in this window</div>
         <div className="text-xs text-muted-foreground mt-1">
@@ -381,16 +408,13 @@ function TabButton({
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      // Tabs are navigation furniture: they rest at chrome contrast and the
-      // active one is marked by weight and full-contrast text rather than an
-      // accent underline. The underline spent the brand colour on something the
-      // user is already looking at, competing with the phase hues in the content.
+      // Tabs are furniture: a --sel fill marks the active one; no accent underline.
       className={cn(
-        "px-3 py-3 md:py-2 text-sm transition-colors -mb-px border-b-2",
-        active
-          ? "font-medium text-foreground border-foreground/25"
-          : "text-chrome border-transparent hover:text-foreground hover:border-foreground/10"
+        "h-7 rounded-sm px-2.5 text-xs font-medium transition-colors",
+        active ? "bg-sel text-foreground" : "text-chrome hover:bg-sel hover:text-foreground"
       )}
     >
       {children}

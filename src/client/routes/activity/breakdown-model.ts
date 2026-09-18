@@ -17,6 +17,17 @@ const GROUP_LABELS: Record<ActivityGroupKey, string> = {
 export const GROUP_OPTIONS: ReadonlyArray<{ id: ActivityGroupKey; label: string }> =
   ACTIVITY_GROUP_KEYS.map((id) => ({ id, label: GROUP_LABELS[id] }));
 
+/** What the table's first column head and the Breakdown tab's section title
+ *  call each dimension. Here rather than beside the table so the component
+ *  file exports only components (react-refresh). */
+export const GROUP_HEADINGS: Record<ActivityGroupKey, string> = {
+  model: "Provider / model",
+  purpose: "Purpose",
+  scopeType: "Scope type",
+  day: "Day",
+  fallback: "Fallback"
+};
+
 /** What a clicked row filters the log by, or null when the group is not a
  *  value the log can express. */
 export function logFilterFor(

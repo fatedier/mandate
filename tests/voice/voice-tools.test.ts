@@ -61,9 +61,10 @@ test("toRealtimeFunctionSchema: translates ToolDefinition to OpenAI function sch
   expect(schema.type).toBe("function");
   expect(schema.name).toBe("list_features");
   expect(schema.description).toBe("List features in a project");
-  expect(schema.parameters.type).toBe("object");
-  expect(schema.parameters.properties.projectId.type).toBe("string");
-  expect(schema.parameters.required).toContain("projectId");
+  const parameters = schema.parameters as { type: string; properties: Record<string, { type: string }>; required: string[] };
+  expect(parameters.type).toBe("object");
+  expect(parameters.properties.projectId.type).toBe("string");
+  expect(parameters.required).toContain("projectId");
 });
 
 test("buildDispatchToManagerToolPlaceholder: returns def with query param", () => {

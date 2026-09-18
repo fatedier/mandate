@@ -120,12 +120,12 @@ function mount(
   // otherwise surface as an unhandled error and fail whichever test happens
   // to be running next.
   const originalFetch = globalThis.fetch;
-  (globalThis as { fetch: typeof fetch }).fetch = async () => new Response(JSON.stringify({
+  (globalThis as { fetch: typeof fetch }).fetch = (async () => new Response(JSON.stringify({
     thread: null,
     messages: [],
     hasMore: false,
     contextUsage: null
-  }), { status: 200, headers: { "content-type": "application/json" } });
+  }), { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
 
   const host = document.createElement("div");
   document.body.appendChild(host);

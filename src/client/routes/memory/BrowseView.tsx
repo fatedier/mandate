@@ -178,7 +178,7 @@ export function BrowseView({
             <button
               key={chip.key}
               type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-primary/50 bg-primary/10 px-2 py-0.5 text-2xs text-primary hover:bg-primary/20"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-sel px-2 py-0.5 text-2xs text-foreground"
               onClick={() => setFilters(withoutFilter(filters, chip.key))}
             >
               {chip.label}
@@ -338,7 +338,7 @@ function EntryRow({
     <button
       type="button"
       onClick={onSelect}
-      className="flex w-full flex-col gap-1 px-3 py-2.5 text-left hover:bg-muted/40"
+      className="flex w-full flex-col gap-1 px-3 py-2.5 text-left transition-colors hover:bg-sel"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {/* The kind badge carries the kind; the location carries where it came
@@ -357,7 +357,7 @@ function EntryRow({
         >
           {usage ? (
             <>
-              <span className={cn(usage.attention && "text-status-review")}>{usage.text}</span>
+              <span className={cn(usage.attention && "text-amber")}>{usage.text}</span>
               {" · "}
             </>
           ) : null}

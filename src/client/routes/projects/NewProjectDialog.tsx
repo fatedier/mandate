@@ -10,18 +10,17 @@ import type { CreateProjectResponse } from "@shared/api-contracts";
 
 interface NewProjectDialogProps {
   /** Visual weight of the trigger button. Default = filled primary CTA
-   *  (right for the empty-projects state); pass "ghost" for low-key chrome
-   *  like the TopBar action slot. */
+   *  (right for the empty-projects state); the Home pane header passes
+   *  "outline" so it reads as a hairline chrome action. */
   triggerVariant?: ComponentProps<typeof Button>["variant"];
-  /** Render only the `+` icon (text label goes to title tooltip + aria-label).
-   *  Use this in TopBar to match the icon-only chat trigger; keep false in
-   *  empty-state CTAs where the label discoverability matters. */
-  triggerIconOnly?: boolean;
+  /** Size of the trigger. Default "sm"; the Home pane header passes "xs" so
+   *  it sits on the 28px chrome tier. */
+  triggerSize?: ComponentProps<typeof Button>["size"];
 }
 
 export function NewProjectDialog({
   triggerVariant = "default",
-  triggerIconOnly = false
+  triggerSize = "sm"
 }: NewProjectDialogProps = {}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -58,21 +57,10 @@ export function NewProjectDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) reset(); }}>
       <DialogTrigger asChild>
-        {triggerIconOnly ? (
-          <Button
-            size="icon"
-            variant={triggerVariant}
-            aria-label="New project"
-            title="New project"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button size="sm" variant={triggerVariant}>
-            <Plus className="h-4 w-4" />
-            New project
-          </Button>
-        )}
+        <Button size={triggerSize} variant={triggerVariant}>
+          <Plus className="size-3.5" />
+          New project
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

@@ -455,6 +455,7 @@ test("agents API: attached work item refs are enriched before append", async () 
     const thread = agentStore.getThreadByScope("manager", null)!;
     const message = agentStore.getActiveMessages(thread.id)[0]!;
     expect(message.content.type).toBe("text");
+    if (message.content.type !== "text") throw new Error("unreachable: asserted above");
     expect(message.content.metadata?.workItemRef).toMatchObject({
       itemId: "wi-1",
       snapshotAt: "2026-05-28T10:00:00.000Z",

@@ -104,7 +104,7 @@ test("closing Side also clears the main replies it reveals", async () => {
   store.getState().onMessageAppended("main", reply("main", 1));
   expect(unread(false)).toBe(1);
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json({ ok: true });
+  globalThis.fetch = (async () => Response.json({ ok: true })) as unknown as typeof fetch;
   try {
     await store.getState().closeSideConversation();
     expect(store.getState().sideThread).toBeNull();

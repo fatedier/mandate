@@ -6,21 +6,22 @@ import { MemoryManager } from "../src/server/modules/memory/manager.js";
 import {
   extractFeatureArchiveMemories,
   extractNewChatMemories,
-  extractSummaryMemories
+  extractSummaryMemories,
+  type MemoryExtractionSource
 } from "../src/server/modules/memory/extraction.js";
 
 test("extractNewChatMemories: promotes durable lessons directly to available memory", async () => {
   const env = freshStoresEnv("md-memory-new-chat-extract-");
   try {
     const memory = new MemoryManager(new LocalMemoryProvider(env.store.db));
-    const source = {
+    const source: MemoryExtractionSource = {
       scope: "project",
       projectId: "project-1",
       threadId: "thread-new-chat",
       messageIds: ["message-new-chat-1"],
       content: "New chat archive transcript. User prefers new chat creation to preserve durable lessons before switching conversations.",
       metadata: { sourceKind: "newChatArchive" }
-    } as const;
+    };
     const model = createMockLLM([{
       text: JSON.stringify({
         memories: [{
@@ -69,12 +70,12 @@ test("extractNewChatMemories: creates no memory when nothing is worth rememberin
   const env = freshStoresEnv("md-memory-new-chat-extract-empty-");
   try {
     const memory = new MemoryManager(new LocalMemoryProvider(env.store.db));
-    const source = {
+    const source: MemoryExtractionSource = {
       scope: "global",
       threadId: "thread-new-chat",
       content: "New chat archive transcript. Assistant said it would check a temporary CI state.",
       metadata: { sourceKind: "newChatArchive" }
-    } as const;
+    };
     const model = createMockLLM([{ text: "{\"memories\":[]}" }]);
 
     const result = await extractNewChatMemories({
@@ -97,7 +98,7 @@ test("extractFeatureArchiveMemories: promotes durable feature-close lessons", as
   const env = freshStoresEnv("md-memory-feature-archive-extract-");
   try {
     const memory = new MemoryManager(new LocalMemoryProvider(env.store.db));
-    const source = {
+    const source: MemoryExtractionSource = {
       scope: "feature",
       projectId: "project-1",
       featureId: "feature-1",
@@ -105,7 +106,7 @@ test("extractFeatureArchiveMemories: promotes durable feature-close lessons", as
       messageIds: ["message-feature-archive-1"],
       content: "Feature archive transcript. User decided this project should keep fake-clock tests separate from true e2e tests.",
       metadata: { sourceKind: "featureArchive" }
-    } as const;
+    };
     const model = createMockLLM([{
       text: JSON.stringify({
         memories: [{
@@ -149,7 +150,7 @@ test("extractSummaryMemories: promotes durable summary facts without source stag
   const env = freshStoresEnv("md-memory-summary-extract-");
   try {
     const memory = new MemoryManager(new LocalMemoryProvider(env.store.db));
-    const source = {
+    const source: MemoryExtractionSource = {
       scope: "feature",
       projectId: "project-1",
       featureId: "feature-1",
@@ -158,7 +159,7 @@ test("extractSummaryMemories: promotes durable summary facts without source stag
       summaryMessageId: "summary-message",
       content: "Compressed conversation summary:\nUser decided that new chat memory extraction should read existing agent messages directly.",
       metadata: { sourceKind: "compressionSummary" }
-    } as const;
+    };
     const model = createMockLLM([{
       text: JSON.stringify({
         memories: [{
@@ -205,7 +206,7 @@ test("extractSummaryMemories: caps over-produced memories instead of making memo
   const env = freshStoresEnv("md-memory-summary-cap-");
   try {
     const memory = new MemoryManager(new LocalMemoryProvider(env.store.db));
-    const source = {
+    const source: MemoryExtractionSource = {
       scope: "project",
       projectId: "project-1",
       threadId: "thread-summary-cap",
@@ -213,7 +214,7 @@ test("extractSummaryMemories: caps over-produced memories instead of making memo
       summaryMessageId: "summary-message",
       content: "Compressed summary with many possible lessons; only the strongest durable memories should survive.",
       metadata: { sourceKind: "compressionSummary" }
-    } as const;
+    };
     const model = createMockLLM([{
       text: JSON.stringify({
         memories: Array.from({ length: 6 }, (_, index) => ({

@@ -7,10 +7,10 @@ import {
  } from "react";
 import { useSearchParams } from "react-router";
 import { CornerDownLeft, Search, X } from "lucide-react";
+import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
 import { withParam } from "@/lib/url-params";
 import { isDesktopRuntime } from "@/lib/runtime";
-import { cn } from "@/lib/utils";
 import { useUiPageSummary } from "@/lib/ui-context";
 import { GeneralPane } from "./GeneralPane";
 import { MemoryPane } from "./MemoryPane";
@@ -28,7 +28,10 @@ import {
   type SettingsSectionId
  } from "./settings-nav";
 import { searchSettings, type SettingsSearchResult } from "./settings-search";
+import { PillTabs } from "@/components/PillTabs";
 import { RefreshButton } from "@/components/RefreshButton";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { PaneHeaderActions } from "@/shell/pane-header-slots";
 import { useUIStore } from "@/store/ui";
 
 /**
@@ -78,9 +81,13 @@ function SettingsSurface({
   setSection: (next: SettingsSectionId) => void;
 }) {
   const { config, loading, loadError, reload } = useSettingsConfig();
-  // With the section rail living in the app sidebar, a collapsed sidebar
-  // would strand the sections — the narrow-screen tab strip takes over then.
+  // The section rail lives in the app sidebar. The in-page strip exists only
+  // while that rail is gone — sidebar collapsed, or a phone, which has no
+  // sidebar — never by pane width: at the 50/50 split the old <40rem rule
+  // showed the rail and the strip together.
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const isMobile = useIsMobile();
+  const showStrip = sidebarCollapsed || isMobile;
   const [query, setQuery] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pendingAnchorRef = useRef<string | null>(null);
@@ -157,16 +164,18 @@ function SettingsSurface({
       className="mx-auto flex min-h-0 w-full flex-1 flex-col"
       style={{ maxWidth: FRAME_MAX }}
     >
+      {/* Refresh is a header-band action, like every other page's. */}
+      <PaneHeaderActions>
+        <RefreshButton scope="local" what="settings" refreshing={loading} onRefresh={() => void reload()} size="icon-xs" />
+      </PaneHeaderActions>
       {/* Fixed chrome: search, restart notice and load errors stay put; only
           the pane region below scrolls, so switching tabs never moves them. */}
-      <div className="flex shrink-0 flex-col gap-3 px-6 pb-4 pt-5">
+      <div className="flex shrink-0 flex-col gap-3 px-6 pb-4 pt-2">
         <SettingsSearchBox
           query={query}
           results={results}
-          loading={loading}
           onQueryChange={setQuery}
           onSelect={openResult}
-          onReload={() => void reload()}
         />
         <RestartBanner />
         {loadError && config ? (
@@ -197,11 +206,16 @@ function SettingsSurface({
           className="min-h-0 flex-1 overflow-y-auto scrollbar-thin px-6 pb-10 [scrollbar-gutter:stable]"
         >
           <div className="@container">
-            {/* 40rem: side nav (168px) + gap (32px) + ~440px usable form column;
-                below that the nav column would crush the fields, so the strip
-                takes over. */}
-            <div className="min-w-0">
-              <TabStrip section={section} setSection={setSection} alwaysVisible={sidebarCollapsed} />
+            <div className="flex min-w-0 flex-col gap-5">
+              {showStrip && (
+                <PillTabs
+                  items={SETTINGS_NAV_GROUPS.flatMap((group) => group.items)}
+                  value={section}
+                  onChange={setSection}
+                  aria-label="Settings sections"
+                  role="nav"
+                />
+              )}
               {searching ? (
                 <SearchResults results={results} onSelect={openResult} query={query} />
               ) : (
@@ -223,17 +237,13 @@ function SettingsSurface({
 function SettingsSearchBox({
   query,
   results,
-  loading,
   onQueryChange,
-  onSelect,
-  onReload
+  onSelect
 }: {
   query: string;
   results: SettingsSearchResult[];
-  loading: boolean;
   onQueryChange: (value: string) => void;
   onSelect: (result: SettingsSearchResult) => void;
-  onReload: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -265,7 +275,7 @@ function SettingsSearchBox({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-9 text-sm outline-none placeholder:text-chrome focus:border-ring focus:ring-[3px] focus:ring-ring/20 [&::-webkit-search-cancel-button]:hidden"
+          className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-9 text-sm outline-none placeholder:text-chrome focus:border-ring focus:ring-[3px] focus:ring-ring/20 [&::-webkit-search-cancel-button]:hidden"
           onChange={(event) => onQueryChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
@@ -293,13 +303,6 @@ function SettingsSearchBox({
           </kbd>
         )}
       </div>
-      <RefreshButton
-        scope="local"
-        what="settings"
-        refreshing={loading}
-        onRefresh={onReload}
-        className="shrink-0"
-      />
     </div>
   );
 }
@@ -324,22 +327,22 @@ function SearchResults({
     );
   }
   return (
-    <div className="overflow-hidden rounded-xl border border-border-soft bg-card">
-      <div className="flex items-center justify-between gap-2 px-4 py-2.5">
-        <span className="label-micro text-chrome">
-          {results.length} {results.length === 1 ? "match" : "matches"}
-        </span>
-        <span className="inline-flex items-center gap-1 text-2xs text-chrome">
-          <CornerDownLeft className="h-3 w-3" aria-hidden />
+    <Section
+      title="Matches"
+      meta={`${results.length} ${results.length === 1 ? "setting" : "settings"}`}
+      trailing={
+        <span className="inline-flex items-center gap-1 text-2xs text-faint">
+          <CornerDownLeft className="size-3" aria-hidden />
           to open the first
         </span>
-      </div>
-      <div className="divide-y divide-border-soft border-t border-border-soft">
+      }
+    >
+      <div className="divide-y divide-border-soft">
         {results.map((result, index) => (
           <button
             key={`${result.section}-${result.label}-${index}`}
             type="button"
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-accent/60"
+            className="flex min-h-10 w-full items-center gap-3 px-3.5 py-1.5 text-left transition-colors hover:bg-sel"
             onClick={() => onSelect(result)}
           >
             <span className="min-w-0 flex-1 truncate text-sm">{result.label}</span>
@@ -353,7 +356,7 @@ function SearchResults({
           </button>
         ))}
       </div>
-    </div>
+    </Section>
   );
 }
 
@@ -364,42 +367,3 @@ function sectionLabel(id: SettingsSectionId): string {
   return id;
 }
 
-/** Flat horizontal tabs — the <40rem rendering. */
-function TabStrip({
-  section,
-  setSection,
-  alwaysVisible
-}: {
-  section: SettingsSectionId;
-  setSection: (next: SettingsSectionId) => void;
-  /** Sidebar collapsed: its section nav is gone, so the strip must show at any width. */
-  alwaysVisible?: boolean;
-}) {
-  return (
-    <nav
-      aria-label="Settings sections"
-      className={cn(
-        "mb-4 flex gap-0.5 overflow-x-auto border-b border-border-soft scroll-x-quiet",
-        !alwaysVisible && "@[40rem]:hidden"
-      )}
-    >
-      {SETTINGS_NAV_GROUPS.flatMap((group) => group.items).map((item) => {
-        const active = item.id === section;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "-mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-xs text-muted-foreground",
-              active && "border-primary font-semibold text-foreground"
-            )}
-            onClick={() => setSection(item.id)}
-          >
-            {item.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}

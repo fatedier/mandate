@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { SkillRegistry } from "../src/server/modules/skills/skill-registry.js";
 import { buildSkillTool } from "../src/server/modules/skills/skill-tool.js";
 import type { SkillEntry } from "../src/server/modules/skills/skill-loader.js";
+import type { ToolContext } from "../src/server/modules/agent/tool-registry.js";
 
 function entry(over: Partial<SkillEntry>): SkillEntry {
   return {
@@ -15,7 +16,10 @@ function entry(over: Partial<SkillEntry>): SkillEntry {
   };
 }
 
-const fakeCtx = { threadId: "t", wakeId: "w" };
+const fakeCtx: ToolContext = {
+  threadId: "t", wakeId: "w",
+  scope: { kind: "manager", managerDir: "/tmp", projectWorkingDirs: [] }
+};
 
 test("buildSkillTool: returns a ToolDefinition shape", () => {
   const r = new SkillRegistry([]);

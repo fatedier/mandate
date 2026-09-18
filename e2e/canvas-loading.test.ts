@@ -33,7 +33,7 @@ async function open() {
   const iframe = page.locator('[data-worker-canvas="zoom-worker"] iframe');
   try {
     await page.goto(fixture.baseUrl + WORKER_PATH + "?tab=terminal");
-    await page.getByRole("button", { name: "Overview", exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Overview", exact: true }).waitFor();
     return { fixture, page, documents, errors, navigate, iframe, close: async () => { await page.close(); fixture.stop(); } };
   } catch (error) { await page.close(); fixture.stop(); throw error; }
 }
@@ -49,7 +49,7 @@ for (const destination of ["/projects", WORKER_PATH + "?tab=terminal"]) {
         if (++assets === 1) capture(route);
         else await route.fulfill({ contentType: "text/javascript", body: "window.assetReady = true;" });
       });
-      await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+      await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
       const first = await pending;
       const canceled = env.page.waitForEvent("requestfailed", { predicate: (request) => request === first.request() });
       await env.navigate(destination);
@@ -90,7 +90,7 @@ test("A document received after leaving waits for a visible viewport before crea
       assets++;
       await route.fulfill({ contentType: "text/javascript", body: "window.assetReady = true;" });
     });
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     const route = await pending;
     await env.navigate("/projects");
     const response = await route.fetch();

@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { tmuxListWindows } from "../../src/server/platform/tmux/tmux.js";
+import { buildPaneRuntimes } from "../../src/server/runtime/pane-runtime-registry.js";
 import {
   buildFeaturesTestApp,
   buildProjectsTestApp,
@@ -15,7 +16,10 @@ function makeApps() {
   const env = freshProjectEnv("md-test-");
   const deps = {
     projects: env.projects, features: env.features,
-    tmuxClient: env.tmux.client, broadcast: () => {}
+    tmuxClient: env.tmux.client, broadcast: () => {},
+    paneRuntimes: buildPaneRuntimes({
+      tmuxClient: env.tmux.client, projectsStore: env.projects, featuresStore: env.features
+    })
   };
   return {
     projectsApp: buildProjectsTestApp(deps),

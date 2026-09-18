@@ -42,7 +42,7 @@ export function FeatureWorkItemDashboard({ featureId }: Props) {
     // never flashes "no work item" on the way to showing it.
     if (settledFor !== featureId) return null;
     return (
-      <section className="rounded-lg border border-border-soft bg-card p-3 text-sm text-faint">
+      <section className="rounded-lg border border-border-soft bg-panel p-3 text-sm text-faint">
         no work item for this feature
       </section>
     );

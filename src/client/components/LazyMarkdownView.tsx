@@ -26,7 +26,7 @@ export function LazyMarkdownView({ text, dense = false }: LazyMarkdownViewProps)
     <Suspense
       fallback={
         <div
-          className={`${dense ? "text-sm leading-[1.45]" : "text-base leading-[1.5]"} min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]`}
+          className={`${dense ? "text-sm leading-[1.45]" : "text-sm leading-[1.6]"} min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]`}
         >
           {text}
         </div>

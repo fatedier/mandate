@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { MemoryRouter } from "react-router";
 import type {
   ActivityDailyDto,
   ActivityGroupDto,
@@ -140,14 +141,22 @@ async function renderOverview(data: ActivitySummaryResponse): Promise<HTMLElemen
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(<OverviewTab data={data} loading={false} onSelectPattern={() => {}} />);
+    root?.render(
+      <MemoryRouter>
+        <OverviewTab data={data} loading={false} onSelectPattern={() => {}} />
+      </MemoryRouter>
+    );
   });
   return container;
 }
 
 async function rerender(data: ActivitySummaryResponse): Promise<void> {
   await act(async () => {
-    root?.render(<OverviewTab data={data} loading={false} onSelectPattern={() => {}} />);
+    root?.render(
+      <MemoryRouter>
+        <OverviewTab data={data} loading={false} onSelectPattern={() => {}} />
+      </MemoryRouter>
+    );
   });
 }
 
@@ -155,7 +164,7 @@ async function rerender(data: ActivitySummaryResponse): Promise<void> {
  *  underneath it. Read as pairs rather than as two lists so a value that moved
  *  to a neighbouring label cannot pass. */
 function figures(page: HTMLElement): Array<[string, string]> {
-  const row = page.querySelector("section")?.firstElementChild;
+  const row = page.querySelector('[data-slot="section-panel"]')?.firstElementChild;
   return Array.from(row?.children ?? []).map((cell): [string, string] => [
     cell.firstElementChild?.textContent ?? "",
     cell.lastElementChild?.textContent ?? ""
@@ -166,7 +175,7 @@ function figures(page: HTMLElement): Array<[string, string]> {
  *  label rather than by position so a reordered row cannot silently move the
  *  assertion onto a different number. */
 function failureIsAlarmed(page: HTMLElement): boolean {
-  const row = page.querySelector("section")?.firstElementChild;
+  const row = page.querySelector('[data-slot="section-panel"]')?.firstElementChild;
   const cell = Array.from(row?.children ?? []).find(
     (node) => node.lastElementChild?.textContent?.startsWith("failed") ?? false
   );
@@ -183,7 +192,7 @@ test("each headline figure carries the label it was computed for", async () => {
   // answers a believable 10% — which is why this pair is spelled out rather
   // than merely checked for a "%".
   expect(figures(page)).toEqual([
-    ["180", "calls · 30 days"],
+    ["180", "calls"],
     ["2.2%", "failed · 4"],
     // A 10,000-token prompt across the window. Beside it, 90% of it cached — the
     // two figures now describe the same quantity, which is the point of the
@@ -202,7 +211,7 @@ test("a window that read nothing from cache reports no share rather than zero", 
     daily: [day(utcDay(0), { calls: 3, failed: 0, outputTokens: 40 })]
   });
   expect(figures(page)).toEqual([
-    ["3", "calls · 30 days"],
+    ["3", "calls"],
     ["0.0%", "failed · 0"],
     ["0", "input tokens"],
     ["—", "cache hit rate"]
@@ -376,37 +385,28 @@ test("the failure rate turns alarming at five percent and not before", async () 
   expect(failureIsAlarmed(page)).toBe(true);
 });
 
-/** The first-token block, read as the pairs a reader sees rather than as a
- *  blob: the heading names a percentile, and the line under it names another. */
-function firstTokenBlock(page: HTMLElement): string[] | null {
-  // The label is a bare text node, not an element, so the block is found by
-  // what it says and then read as [label, headline, detail].
-  const panel = [...page.querySelectorAll("div")].find(
-    (node) => node.textContent?.startsWith("TTFT p50") ?? false
-  );
-  if (!panel) return null;
-  return [
-    panel.firstChild?.textContent ?? "",
-    ...[...panel.children].map((node) => node.textContent ?? "")
-  ];
+/** The latency section's header line, where the percentile strip lives:
+ *  p50 · p95 · p99 and, when the window measured one, TTFT p50. */
+function latencyStrip(page: HTMLElement): string {
+  return page.querySelectorAll('[data-slot="section-header"]')[1]?.textContent ?? "";
 }
 
-test("the TTFT figures say which percentile each of them is", async () => {
+test("the TTFT figure says which percentile it is", async () => {
   const page = await renderOverview(SUMMARY);
-  // 320ms p50 and 980ms p95 against latencies of 900ms and 4.2s: every number
-  // here is distinct from every latency number, so a block wired to the wrong
-  // field reads as a different figure rather than as a coincidence.
-  expect(firstTokenBlock(page)).toEqual(["TTFT p50", "320ms", "140 calls · p95 980ms"]);
+  // 320ms against latencies of 900ms / 4.2s / 12s: every number here is
+  // distinct from every latency number, so a strip wired to the wrong field
+  // reads as a different figure rather than as a coincidence.
+  expect(latencyStrip(page)).toContain("p50 900ms · p95 4.2s · p99 12s · TTFT p50 320ms");
 });
 
 test("a window where nothing timed a first token shows no TTFT figures", async () => {
   const page = await renderOverview({ ...SUMMARY, ttft: { calls: 0, p50Ms: 0, p95Ms: 0, p99Ms: 0 } });
   // Not a dash, not a zero — absent. The column is younger than the window, so
   // early on this is the normal state, and an empty reading dressed as a
-  // measurement is worse than no row.
-  expect(firstTokenBlock(page)).toBeNull();
+  // measurement is worse than no figure.
+  expect(latencyStrip(page).includes("TTFT")).toBe(false);
   // The latency percentiles are a different population and still have theirs.
-  expect(page.textContent).toContain("p95");
+  expect(latencyStrip(page)).toContain("p50 900ms · p95 4.2s · p99 12s");
 });
 
 test("the overview's table is the breakdown's, pinned to purpose", async () => {
@@ -441,3 +441,67 @@ test("whatever table the overview shows is the purpose cut", async () => {
   }
 });
 
+
+test("overview is three sections on the list language, in order", async () => {
+  const page = await renderOverview({ ...SUMMARY, group: "purpose" });
+  const headers = Array.from(page.querySelectorAll('[data-slot="section-header"]')).map(
+    (h) => h.querySelector('[data-slot="section-title"]')!.textContent
+  );
+  expect(headers).toEqual(["Calls", "How long calls take", "Where the time and the failures go"]);
+  expect(page.querySelectorAll('[data-slot="section-panel"]').length).toBe(3);
+  expect(page.innerHTML.includes("bg-card")).toBe(false);
+  // Eyebrows live in the header line now; the one label-micro left is the
+  // breakdown table's own column heads, which sit in a <th>.
+  const eyebrows = [...page.querySelectorAll(".label-micro")].filter((n) => n.tagName !== "TH");
+  expect(eyebrows.length).toBe(0);
+  const latencyHeader = page.querySelectorAll('[data-slot="section-header"]')[1]!;
+  expect(latencyHeader.textContent).toContain("p50");
+  expect(latencyHeader.textContent).toContain("TTFT");
+  const marker = page.querySelector("[data-latency-bucket] .pill")!;
+  expect(marker === null).toBe(false);
+  expect(marker.className.split(/\s+/)).toContain("pill-neutral");
+  expect(page.innerHTML.includes("text-primary")).toBe(false);
+  // Every row carries the same fixed-width marker slot, pinned or not, so the
+  // flex-1 track is the same width on every row and bar widths (a share of
+  // the track) stay comparable down the column.
+  const rows = [...page.querySelectorAll("[data-latency-bucket]")];
+  expect(rows.length).toBe(5);
+  for (const row of rows) {
+    expect(row.className.split(/\s+/)).toContain("min-h-10");
+    const slots = row.querySelectorAll('[data-slot="latency-markers"]');
+    expect(slots.length).toBe(1);
+    const slot = slots[0]!.className.split(/\s+/);
+    // Fixed wide; on a phone the slot shrinks to its pills so the track keeps
+    // some width.
+    expect(slot).toContain("w-32");
+    expect(slot).toContain("@max-[34rem]:w-auto");
+    expect(slot).toContain("shrink-0");
+    const track = row.querySelector('[data-slot="latency-track"]')!;
+    expect(track === null).toBe(false);
+    const trackClass = track.className.split(/\s+/);
+    expect(trackClass).toContain("flex-1");
+    expect(trackClass).toContain("bg-sel");
+    expect(track.firstElementChild!.className.split(/\s+/)).toContain("bg-faint");
+  }
+});
+
+test("the marker slot budgets for all three percentiles sharing one bucket", async () => {
+  // A fast window puts p50, p95 and p99 all under a second. Nothing in the
+  // pinning excludes that, so the fixed slot has to hold three pills — two
+  // fit in 4.5rem, three overran the count column.
+  const page = await renderOverview({ ...SUMMARY, p50Ms: 200, p95Ms: 500, p99Ms: 900 });
+  const fastest = page.querySelector('[data-latency-bucket="<1s"]')!;
+  const slot = fastest.querySelector('[data-slot="latency-markers"]')!;
+  expect([...slot.children].map((pill) => pill.textContent)).toEqual(["p50", "p95", "p99"]);
+  expect([...slot.children].every((pill) => pill.className.split(/\s+/).includes("pill"))).toBe(true);
+  expect(slot.className.split(/\s+/)).toContain("w-32");
+  expect(slot.className.split(/\s+/)).toContain("@max-[34rem]:w-auto");
+});
+
+test("the percentile strip in the latency header hides on a phone; the panel keeps the numbers", async () => {
+  const page = await renderOverview(SUMMARY);
+  const latencyHeader = page.querySelectorAll('[data-slot="section-header"]')[1]!;
+  const strip = Array.from(latencyHeader.querySelectorAll("span")).find((s) => s.textContent?.includes("p50"))!;
+  expect(strip === undefined).toBe(false);
+  expect(strip.className.split(/\s+/)).toContain("@max-[34rem]:hidden");
+});

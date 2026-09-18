@@ -246,7 +246,7 @@ function MemoryText({ text, tone }: { text: string; tone?: "previous" }) {
         "group/mem relative rounded-sm border px-2.5 py-2",
         tone === "previous"
           ? "border-dashed border-border-soft bg-transparent"
-          : "border-border-soft bg-card/40"
+          : "border-border-soft bg-panel"
       )}
     >
       <div className="mb-1 flex items-center justify-between gap-2">

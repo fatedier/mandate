@@ -34,7 +34,7 @@ test("create_feature (manager tool): creates feature row + tmux window", async (
 
     const r = await tool.handler(
       { projectId, name: "login", mode: "shared-cwd" },
-      { threadId: "t1", wakeId: "w1" }
+      { threadId: "t1", wakeId: "w1", scope: { kind: "manager", managerDir: "", projectWorkingDirs: [] } }
     );
     expect(r.ok).toBeTruthy();
     expect(r.featureName).toBe("login");
@@ -62,7 +62,7 @@ test("create_feature (manager tool): error for missing project", async () => {
     });
     const r = await tool.handler(
       { projectId: "nope", name: "x", mode: "shared-cwd" },
-      { threadId: "t1", wakeId: "w1" }
+      { threadId: "t1", wakeId: "w1", scope: { kind: "manager", managerDir: "", projectWorkingDirs: [] } }
     );
     expect(String(r.error)).toMatch(/project not found|project.*not found/i);
   } finally { env.cleanup(); }

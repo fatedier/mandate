@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite";
 import { initializeAgentSchema } from "../src/server/modules/agent/schema.js";
 import { AgentStore } from "../src/server/modules/agent/agent-store.js";
 import { featureTaskDispatchMetadata } from "../src/server/modules/agent/feature-task-dispatch-message.js";
+import type { FeatureEventContent } from "../src/shared/agent-message-types.js";
 
 function setup() {
   const db = new Database(":memory:");
@@ -113,8 +114,9 @@ test("listPendingFeatureEvents returns only queued feature_event rows", () => {
 
   const events = agentStore.listPendingFeatureEvents(threadId, 50);
   expect(events.length).toBe(1);
-  expect(events[0]!.content.kind).toBe("escalation");
-  expect(events[0]!.content.signal).toBe("needs_user");
+  const content = events[0]!.content as Extract<FeatureEventContent, { kind: "escalation" }>;
+  expect(content.kind).toBe("escalation");
+  expect(content.signal).toBe("needs_user");
 });
 
 test("queued mailbox predicates distinguish messages from feature_events", () => {

@@ -1,17 +1,15 @@
 import type { ReactNode } from "react";
 
-import { PageHeader } from "@/shell/PageHeader";
-import { cn } from "@/lib/utils";
-import { MEMORY_VIEWS, type MemoryView } from "./memory-views";
+import { PillTabs } from "@/components/PillTabs";
 import { RefreshButton } from "@/components/RefreshButton";
+import { PaneHeaderActions } from "@/shell/pane-header-slots";
+import { MEMORY_VIEWS, type MemoryView } from "./memory-views";
 
 /**
- * Page frame shared by all three views: header, then the view switcher.
- *
- * Everything above the tabs is identical on every view, deliberately. When the
- * header carried a per-view subtitle and a button only one view supplied, it
- * was 32px tall on one tab and 25px on another — so the tab strip jumped under
- * the cursor that had just clicked it.
+ * Page frame shared by all three views: the refresh action portals into the
+ * pane header band, then the view switcher, then the view. The frame is
+ * identical on every view, deliberately, so the tab strip never moves under
+ * the cursor that just clicked it.
  */
 export function MemoryShell({
   view,
@@ -27,29 +25,20 @@ export function MemoryShell({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 p-6">
-      <PageHeader
-        subtitle="What the agent has learned, and how it is holding up."
-        trailing={
-          <RefreshButton refreshing={refreshing} onRefresh={onRefresh} />
-        }
+    <div
+      data-slot="page-column"
+      className="@container mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-1 pb-6 md:px-8"
+    >
+      <PaneHeaderActions>
+        <RefreshButton refreshing={refreshing} onRefresh={onRefresh} size="icon-xs" />
+      </PaneHeaderActions>
+      <PillTabs
+        items={MEMORY_VIEWS}
+        value={view}
+        onChange={setView}
+        aria-label="Memory views"
+        role="nav"
       />
-      <nav aria-label="Memory views" className="-mt-1 flex gap-0.5 border-b border-border-soft">
-        {MEMORY_VIEWS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-current={item.id === view ? "page" : undefined}
-            className={cn(
-              "-mb-px border-b-2 border-transparent px-3 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground",
-              item.id === view && "border-primary font-semibold text-foreground"
-            )}
-            onClick={() => setView(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
       {children}
     </div>
   );

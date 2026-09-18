@@ -10,7 +10,7 @@ test("parseTmuxLayout: returns null for empty/non-string", () => {
 test("parseTmuxLayout: parses a single-pane layout", () => {
   const result = parseTmuxLayout("abcd,80x24,0,0,5");
   expect(result).toBeTruthy();
-  expect(result.leaves).toEqual([
+  expect(result!.leaves).toEqual([
     { layoutPaneId: "5", x: 0, y: 0, width: 80, height: 24 }
   ]);
 });
@@ -18,7 +18,7 @@ test("parseTmuxLayout: parses a single-pane layout", () => {
 test("parseTmuxLayout: parses a horizontal split", () => {
   const result = parseTmuxLayout("abcd,80x24,0,0{40x24,0,0,1,40x24,40,0,2}");
   expect(result).toBeTruthy();
-  expect(result.leaves.length).toBe(2);
-  expect(result.leaves[0]?.layoutPaneId).toBe("1");
-  expect(result.leaves[1]?.layoutPaneId).toBe("2");
+  expect(result!.leaves.length).toBe(2);
+  expect(result!.leaves[0]?.layoutPaneId).toBe("1");
+  expect(result!.leaves[1]?.layoutPaneId).toBe("2");
 });

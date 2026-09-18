@@ -152,7 +152,7 @@ test("POST /messages: image attachment is persisted when model supports image in
     const { projects, features, fid } = buildScene(store);
     const app = appWith({ agentStore, projects, features, modelSupportsImage: true });
     const attachment = {
-      type: "image",
+      type: "image" as const,
       id: "img-test",
       name: "shot.png",
       mediaType: "image/png",

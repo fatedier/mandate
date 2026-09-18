@@ -20,7 +20,7 @@ function SystemMessageImpl({ message }: SystemMessageProps) {
   let color: string;
   let label: string;
 
-  color = "text-amber bg-amber/5";
+  color = "text-faint";
   label = source;
 
   let text = "(system)";
@@ -30,8 +30,8 @@ function SystemMessageImpl({ message }: SystemMessageProps) {
   const time = formatClockTime(message.createdAt);
 
   return (
-    <div className={cn("flex items-center gap-2 px-2 py-1 my-1 rounded-sm text-2xs", color)}>
-      <AlertTriangle className="h-3.5 w-3.5" />
+    <div className={cn("flex h-6 items-center gap-2 px-1 my-0.5 text-2xs", color)}>
+      <AlertTriangle className="size-3.5 shrink-0" />
       <span className="font-mono label-micro">{label}</span>
       <span className="truncate">{text}</span>
       {time && (

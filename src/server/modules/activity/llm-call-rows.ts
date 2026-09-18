@@ -2,6 +2,7 @@ import type {
   LlmCallDetailDto,
   LlmCallSummaryDto
 } from "../../../shared/api-contracts.js";
+import type { SqlValue } from "../../platform/db/sql-value.js";
 
 export type LlmCallRow = {
   id: string;
@@ -147,7 +148,7 @@ export function llmCallSummaryFromRow(
 
 export function buildLlmCallWhere(options: LlmCallFilters) {
   const clauses: string[] = [];
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
 
   // Keyset pagination over the same (created_at, id) order the queries sort by.
   // `created_at` is whole-millisecond, so a plain `created_at < ?` cursor skips

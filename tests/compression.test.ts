@@ -698,7 +698,7 @@ test("buildLocalCompressionMessages: omits historical view_image bytes", () => {
 test("runAgentCompressionLlm uses streaming for OpenAI Codex", async () => {
   const streamCalls: any[] = [];
   const model = {
-    specificationVersion: "v3",
+    specificationVersion: "v3" as const,
     provider: "mock-codex",
     modelId: "mock-codex",
     supportedUrls: {},
@@ -747,7 +747,7 @@ test("runAgentCompressionLlm uses streaming for OpenAI Codex", async () => {
 test("runAgentCompressionLlm omits reasoning when model disables reasoning support", async () => {
   const streamCalls: any[] = [];
   const model = {
-    specificationVersion: "v3",
+    specificationVersion: "v3" as const,
     provider: "mock-codex",
     modelId: "mock-codex",
     supportedUrls: {},
@@ -795,7 +795,7 @@ test("runAgentCompressionLlm omits reasoning when model disables reasoning suppo
 
 test("runAgentCompressionLlm rejects provider error finishes", async () => {
   const model = {
-    specificationVersion: "v3",
+    specificationVersion: "v3" as const,
     provider: "mock-codex",
     modelId: "mock-codex",
     supportedUrls: {},
@@ -833,7 +833,7 @@ test("runAgentCompressionLlm rejects provider error finishes", async () => {
 test("runAgentCompressionLlm uses streaming for OpenAI-compatible compression", async () => {
   const streamCalls: any[] = [];
   const model = {
-    specificationVersion: "v3",
+    specificationVersion: "v3" as const,
     provider: "mock-openai",
     modelId: "mock-openai",
     supportedUrls: {},

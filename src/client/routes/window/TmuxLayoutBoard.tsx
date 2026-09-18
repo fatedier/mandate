@@ -27,6 +27,7 @@ export function TmuxLayoutBoard({ window, paneHref, onAfterChange }: TmuxLayoutB
 
   return (
     <div
+      data-slot="pane-board"
       className="relative w-full h-[clamp(380px,60vh,680px)] overflow-hidden"
       style={{ aspectRatio: terminalAspectRatio }}
     >

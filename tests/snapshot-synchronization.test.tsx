@@ -145,7 +145,7 @@ test("useApi captures snapshot freshness before fetching a manual refresh", asyn
   const previousFetch = globalThis.fetch;
   let resolve!: (response: Response) => void;
   let request!: ReturnType<typeof useApi>;
-  globalThis.fetch = (() => new Promise<Response>((done) => { resolve = done; })) as typeof fetch;
+  globalThis.fetch = (() => new Promise<Response>((done) => { resolve = done; })) as unknown as typeof fetch;
   function Probe() { request = useApi(); return null; }
   const host = document.createElement("div");
   const root = createRoot(host);

@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type { PaneDisplayStatus } from "@/routes/projects/feature-card-data";
 
 const TONE: Record<NonNullable<PaneDisplayStatus>, string> = {
-  running: "bg-live shadow-[var(--shadow-glow-green)] animate-live",
+  running: "bg-live animate-live",
   idle: "bg-faint"
 };
 

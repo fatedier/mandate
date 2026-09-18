@@ -29,7 +29,7 @@ function deferResponses() {
   }> = [];
   globalThis.fetch = (() => new Promise<Response>((resolve, reject) => {
     requests.push({ resolve, reject });
-  })) as typeof fetch;
+  })) as unknown as typeof fetch;
   return requests;
 }
 

@@ -9,6 +9,7 @@ import type {
   MemorySearchReason,
   MemoryStatus
 } from "./types.js";
+import type { SqlValue } from "../../platform/db/sql-value.js";
 
 export type MemoryRow = {
   id: string;
@@ -63,7 +64,7 @@ export function buildVisibilityFilter(
   context: MemorySearchContext,
   alias: string
 ) {
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
   const clauses: string[] = [];
   const status = resolveStatusFilter(input);
   if (status !== "any") {
@@ -120,7 +121,7 @@ export function buildVisibilityFilter(
 }
 
 export function buildPromptVisibilityFilter(context: MemorySearchContext, alias: string) {
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
   const visible = [`${alias}.scope in ('user','global')`];
   if (context.projectId) {
     visible.push(`(${alias}.scope = 'project' and ${alias}.project_id = ?)`);

@@ -33,7 +33,7 @@ async function open(tab = "overview", setup?: (page: Page) => Promise<void>) {
   try {
     await setup?.(page);
     await page.goto(fixture.baseUrl + WORKER_PATH + (tab === "overview" ? "" : `?tab=${tab}`));
-    await page.locator("main").getByRole("button", { name: "Overview", exact: true }).waitFor();
+    await page.locator("main").getByRole("tab", { name: "Overview", exact: true }).waitFor();
   } catch (error) {
     await page.close();
     fixture.stop();
@@ -73,19 +73,19 @@ test("Worker tabs preserve the Canvas document, input and scroll without another
     expect(await env.iframe.count()).toBe(0);
     expect(env.requests).toHaveLength(0);
 
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.frame.locator("#draft").fill("Keep this draft");
     await env.frame.locator("#scroll").evaluate((node) => { node.scrollTop = 120; });
     const iframe = await env.iframe.elementHandle();
     const instance = await env.frame.locator("body").getAttribute("data-instance");
     expect(instance).toBeTruthy();
 
-    for (const tab of ["Terminal", "Artifacts", "Changes"]) {
-      await env.page.getByRole("button", { name: tab, exact: true }).click();
+    for (const tab of ["Terminal", "Canvases", "Changes"]) {
+      await env.page.getByRole("tab", { name: tab, exact: true }).click();
       await env.iframe.waitFor({ state: "hidden" });
       expect(await iframe!.evaluate((node) => node.isConnected)).toBe(true);
       expect(await env.iframe.count()).toBe(1);
-      await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+      await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
       await env.frame.locator("#draft").waitFor();
       expect(await env.iframe.evaluate((node, original) => node === original, iframe)).toBe(true);
       expect(await env.frame.locator("body").getAttribute("data-instance")).toBe(instance);
@@ -106,21 +106,21 @@ test("A retained Canvas receives matching updates without reloading unchanged HT
   try {
     await env.frame.locator("#draft").fill("Keep on revalidation");
     const instance = await env.frame.locator("body").getAttribute("data-instance");
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
     const unchanged = env.page.waitForResponse((response) => new URL(response.url()).pathname === documentPath);
     env.fixture.emit(SSE_EVENTS.canvasUpdated, { canvasId: "unrelated-canvas" });
     env.fixture.emit(SSE_EVENTS.canvasUpdated, { canvasId: "zoom-canvas" });
     await unchanged;
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     expect(await env.frame.locator("#draft").inputValue()).toBe("Keep on revalidation");
     expect(await env.frame.locator("body").getAttribute("data-instance")).toBe(instance);
     expect(env.requests).toHaveLength(2);
 
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
     env.fixture.setCanvasHtml(html("Updated while hidden"));
     env.fixture.emit(SSE_EVENTS.canvasUpdated, { canvasId: "zoom-canvas" });
     await env.iframe.waitFor({ state: "detached" });
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.frame.getByText("Updated while hidden", { exact: true }).waitFor();
     expect(env.requests).toHaveLength(3);
     expect(env.errors).toEqual([]);
@@ -131,11 +131,11 @@ test("Retained Canvas content is revalidated after SSE reconnects", async () => 
   const env = await open();
   try {
     await env.frame.locator("#draft").waitFor();
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
     env.fixture.setCanvasHtml(html("Updated during disconnect"));
     env.fixture.disconnectEvents();
     await env.iframe.waitFor({ state: "detached", timeout: 10000 });
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.frame.getByText("Updated during disconnect", { exact: true }).waitFor();
     expect(env.requests).toHaveLength(2);
     expect(env.errors).toEqual([]);
@@ -161,13 +161,13 @@ test("Republishing unchanged HTML reloads updated Canvas assets", async () => {
     const srcDoc = await env.iframe.getAttribute("srcdoc");
     const instance = await env.frame.locator("body").getAttribute("data-instance");
 
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
     assetText = "Updated asset";
     env.fixture.publishCanvasRevision();
     env.fixture.emit(SSE_EVENTS.canvasUpdated, { canvasId: "zoom-canvas" });
     await env.iframe.waitFor({ state: "detached" });
     expect(assetRequests).toBe(1);
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.frame.getByText("Updated asset", { exact: true }).waitFor();
     expect(await env.iframe.getAttribute("srcdoc")).toBe(srcDoc);
     expect(await env.frame.locator("body").getAttribute("data-instance")).not.toBe(instance);
@@ -196,13 +196,13 @@ test("SSE resynchronization refreshes retained Canvas without an intervening err
   const env = await open();
   try {
     await env.frame.locator("#draft").waitFor();
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
     env.fixture.setCanvasHtml(html("Updated during resynchronization"));
     env.fixture.emit(SSE_EVENTS.agentMessagePatch, {
       threadId: "zoom-thread", wakeId: "missing-baseline", offset: 8, deltaText: "tail"
     });
     await env.iframe.waitFor({ state: "detached" });
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.frame.getByText("Updated during resynchronization", { exact: true }).waitFor();
     expect(env.requests).toHaveLength(2);
     expect(env.errors).toEqual([]);
@@ -224,8 +224,8 @@ test("Returning to Overview retries a failed lookup for a task outside the start
   try {
     await env.page.getByText("no work item for this feature", { exact: true }).waitFor();
     expect(await env.iframe.count()).toBe(0);
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     await env.frame.locator("#draft").waitFor();
     expect(lookups).toBe(2);
     expect(env.requests).toHaveLength(1);
@@ -246,8 +246,8 @@ test("A failed retained Canvas load can be retried without navigation or an SSE 
     await env.page.getByText("Canvas temporarily unavailable", { exact: true }).waitFor();
     await env.page.getByRole("button", { name: "Retry canvas", exact: true }).click();
     await env.frame.locator("#draft").fill("Recovered draft");
-    await env.page.getByRole("button", { name: "Terminal", exact: true }).click();
-    await env.page.getByRole("button", { name: "Overview", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Terminal", exact: true }).click();
+    await env.page.getByRole("tab", { name: "Overview", exact: true }).click();
     expect(await env.frame.locator("#draft").inputValue()).toBe("Recovered draft");
     expect(env.requests).toHaveLength(2);
     expect(env.errors).toEqual([]);
@@ -275,7 +275,9 @@ test("Changing workers and visiting Projects retains Canvas without eagerly moun
     expect(await env.frame.locator("#draft").inputValue()).toBe("Previous worker draft");
     expect(await env.iframe.evaluate((node, original) => node === original, iframe)).toBe(true);
     expect(env.requests).toHaveLength(1);
-    await env.page.getByRole("button", { name: "Close drawer", exact: true }).click();
+    // The redesign has no "close drawer" that leaves the Worker; leaving is a
+    // navigation, here via the sidebar's Home link.
+    await env.page.locator('nav a[href="/projects"]').first().click();
     await env.page.waitForURL(env.fixture.baseUrl + "/projects");
     await env.iframe.waitFor({ state: "hidden" });
     expect(await env.iframe.count()).toBe(1);

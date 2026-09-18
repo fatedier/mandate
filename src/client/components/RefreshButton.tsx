@@ -23,8 +23,9 @@ interface RefreshButtonProps {
    *  down. */
   scope?: "page" | "local";
   /** Icon box size. Defaults to `icon-sm` (32px); pass `icon` (36px) when the
-   *  button sits beside neighbours of that size, as in the feature header. */
-  size?: "icon" | "icon-sm";
+   *  button sits beside neighbours of that size, as in the feature header, or
+   *  `icon-xs` (28px) in the pane header band, where every action is 28px. */
+  size?: "icon" | "icon-sm" | "icon-xs";
   className?: string;
 }
 

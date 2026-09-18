@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import {
   MoreHorizontal,
   Terminal as TerminalIcon,
@@ -16,7 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { paneStatus, paneStatusClass, paneTitle } from "@/routes/window/pane-helpers";
+import { paneStatus, paneTitle, statusBorderClass } from "@/routes/window/pane-helpers";
+import { getPaneDisplayCommand } from "@/lib/render";
 import { useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-paths";
@@ -41,11 +42,16 @@ export function LayoutPane({ pane, leaf, parsedWidth, parsedHeight, paneHref, on
   const top = (leaf.y / parsedHeight) * 100;
   const width = (leaf.width / parsedWidth) * 100;
   const height = (leaf.height / parsedHeight) * 100;
-  // Tiny cells skip the preview entirely (no room for it). Otherwise show the
-  // full preview bottom-aligned with overflow clipping — long previews fill
-  // the card from the bottom up, short ones land at the bottom.
+  // Tiny cells skip the preview entirely (no room for it). Otherwise the
+  // preview is a clipped block: short previews sit at the top, overflowing
+  // ones are pinned to the bottom (latest output) by the scroll effect below.
   const tiny = width < 18 || height < 22;
   const status = paneStatus(pane);
+  // A whitespace-only name counts as no name: the command leads, in mono.
+  const name = pane.metadata?.name?.trim();
+  // Not `pane.currentCommand`: that is the wrapper tmux reports (node, npm,
+  // env…); the display command looks through it to the real foreground process.
+  const command = getPaneDisplayCommand(pane);
 
   const navigate = useNavigate();
   const [closing, setClosing] = useState(false);
@@ -100,30 +106,28 @@ export function LayoutPane({ pane, leaf, parsedWidth, parsedHeight, paneHref, on
 
   const preview = tiny ? "" : (pane.preview ?? "");
 
-  // Pin scroll position to the bottom by default (latest terminal output is at
-  // the bottom). When the preview text changes (new SSE snapshot) and the user
-  // hasn't scrolled away from the bottom, snap back. Compare against the
-  // PREVIOUS scrollHeight so the first render (when prev = 0) always scrolls.
+  // The preview is `overflow-hidden`: the reader cannot scroll it, so there is
+  // no "scrolled away" state to respect. Every new snapshot pins the block to
+  // its bottom, where the latest output is; scrollTop on a clipped element
+  // still moves the content.
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastScrollHeightRef = useRef(0);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const wasAtBottom = el.scrollTop + el.clientHeight >= lastScrollHeightRef.current - 24;
-    if (wasAtBottom) {
-      el.scrollTop = el.scrollHeight;
-    }
-    lastScrollHeightRef.current = el.scrollHeight;
+    el.scrollTop = el.scrollHeight;
   }, [preview]);
+
+  const stop = (e: SyntheticEvent) => e.stopPropagation();
 
   return (
     <div
       role="button"
       tabIndex={0}
+      data-slot="pane-panel"
       className={cn(
-        "absolute group flex flex-col gap-1 p-2 rounded-md text-left overflow-hidden border border-border-soft bg-card cursor-pointer transition-colors",
+        "absolute group flex flex-col overflow-hidden rounded-lg border border-border-soft bg-panel text-left cursor-pointer transition-colors",
         "hover:border-border focus-visible:ring-2 focus-visible:ring-ring outline-none",
-        paneStatusClass(pane)
+        statusBorderClass(pane)
       )}
       style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
       onClick={handleTerminal}
@@ -134,62 +138,68 @@ export function LayoutPane({ pane, leaf, parsedWidth, parsedHeight, paneHref, on
         }
       }}
     >
-      <span className="flex items-center justify-between gap-1 min-w-0">
-        <span className="font-mono text-2xs font-semibold truncate" title={pane.metadata?.description || undefined}>
-          {paneTitle(pane)}
+      <span className="flex h-9 shrink-0 items-center gap-2 border-b border-border-soft px-3.5">
+        <span data-slot="pane-index" className="num font-mono w-[22px] shrink-0 text-2xs text-faint">[{pane.paneIndex}]</span>
+        <span
+          data-slot="pane-name"
+          className={cn("min-w-0 truncate text-xs font-medium text-foreground", !name && "font-mono")}
+          title={pane.metadata?.description || undefined}
+        >
+          {name || paneTitle(pane)}
         </span>
-        <span className="flex items-center gap-1 shrink-0">
-          <span
-            className="shrink-0 cursor-default"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+        {name && command && (
+          <span data-slot="pane-command" className="shrink-0 font-mono text-2xs text-faint">{command}</span>
+        )}
+        <span className="flex-1" />
+        <span data-slot="pane-dot" className="shrink-0 cursor-default" onClick={stop} onKeyDown={stop}>
+          <StatusDot status={status} />
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            data-slot="pane-menu"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-chrome hover:bg-sel hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label="Pane actions"
+            onClick={stop}
+            onKeyDown={stop}
           >
-            <StatusDot status={status} />
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="flex h-7 w-7 -m-1 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-background/40 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              aria-label="Pane actions"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
+            <MoreHorizontal className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={stop}>
+            <DropdownMenuItem onSelect={handleTerminal}>
+              <TerminalIcon className="h-4 w-4" />
+              Terminal
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => { void handleSplit("right"); }}>
+              <SplitSquareHorizontal className="h-4 w-4" />
+              Split right
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => { void handleSplit("down"); }}>
+              <SplitSquareVertical className="h-4 w-4" />
+              Split down
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => { void handleClose(); }}
+              className="text-red"
+              disabled={closing}
             >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onSelect={handleTerminal}>
-                <TerminalIcon className="h-4 w-4" />
-                Terminal
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => { void handleSplit("right"); }}>
-                <SplitSquareHorizontal className="h-4 w-4" />
-                Split right
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => { void handleSplit("down"); }}>
-                <SplitSquareVertical className="h-4 w-4" />
-                Split down
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => { void handleClose(); }}
-                className="text-red"
-                disabled={closing}
-              >
-                <X className="h-4 w-4" />
-                {closing ? "Closing..." : "Close pane"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </span>
+              <X className="h-4 w-4" />
+              {closing ? "Closing..." : "Close pane"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </span>
       {!tiny && (
         <div
           ref={scrollRef}
-          className="flex-1 min-h-0 flex flex-col-reverse overflow-hidden md:flex-col md:overflow-y-auto md:overscroll-contain md:scrollbar-thin"
+          data-slot="pane-preview"
+          className={cn(
+            "min-h-0 flex-1 overflow-hidden bg-code-bg px-3.5 py-2 font-mono text-2xs leading-[17px] text-muted-foreground whitespace-pre",
+            !preview && "text-faint"
+          )}
         >
-          <pre className="m-0 text-2xs text-muted-foreground font-mono leading-snug whitespace-pre-wrap break-words">
-            {preview || "No captured output yet."}
-          </pre>
+          {preview || "No captured output yet."}
         </div>
       )}
     </div>

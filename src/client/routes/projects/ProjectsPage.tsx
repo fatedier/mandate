@@ -7,7 +7,7 @@ import { NewProjectDialog } from "@/routes/projects/NewProjectDialog";
 import { ProjectSection } from "@/routes/projects/ProjectSection";
 import { SetupChecklist } from "@/routes/projects/SetupChecklist";
 import { useUiPageSummary } from "@/lib/ui-context";
-import { TopBarActions } from "@/shell/topbar-actions";
+import { PaneHeaderActions } from "@/shell/pane-header-slots";
 
 function swapProjectId(projectIds: string[], projectId: string, direction: 1 | -1): string[] | null {
   const idx = projectIds.indexOf(projectId);
@@ -65,10 +65,10 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 p-3 md:gap-6 md:p-6">
+    <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-7 px-4 pt-1 pb-6 md:px-8">
       <SetupChecklist hasProjects={projects.length > 0} onVisibleChange={setSetupVisible} />
       {projects.length === 0 && !setupVisible && (
-        <div className="rounded-lg border border-border-soft bg-card p-4 shadow-card md:p-6">
+        <div className="rounded-lg border border-border-soft bg-panel p-4 md:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold">No projects yet</h2>
@@ -88,10 +88,10 @@ export function ProjectsPage() {
       )}
       {projects.length > 0 && (
         <>
-          <TopBarActions>
-            <NewProjectDialog triggerVariant="ghost" triggerIconOnly />
-          </TopBarActions>
-          <div className="flex flex-col gap-6">
+          <PaneHeaderActions>
+            <NewProjectDialog triggerVariant="outline" triggerSize="xs" />
+          </PaneHeaderActions>
+          <div className="flex flex-col gap-7">
             {projects.map((project, index) => (
               <ProjectSection
                 key={project.id}

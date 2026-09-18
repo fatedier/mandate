@@ -17,11 +17,17 @@ import { useSnapshotSubscription } from "@/hooks/useSnapshotSubscription";
 import { useVoiceSession } from "@/hooks/useVoiceSession";
 import { usePublishUiLocation } from "@/lib/ui-context";
 import { useUIStore } from "@/store/ui";
+import { applyTheme } from "@/lib/theme";
 import { Sidebar } from "@/shell/Sidebar";
 import { BannerToaster } from "@/shell/BannerToaster";
 import { ConnectionIndicator } from "@/shell/ConnectionIndicator";
 import { TopBar } from "@/shell/TopBar";
-import { TopBarActionsProvider } from "@/shell/topbar-actions";
+import { PaneHeader } from "@/shell/PaneHeader";
+import { PaneHeaderSlotsProvider } from "@/shell/pane-header-slots";
+import { TitlebarStrip } from "@/shell/TitlebarStrip";
+import { BackendBanner } from "@/shell/BackendBanner";
+import { DockBadge } from "@/shell/DockBadge";
+import { ZoomBadge } from "@/shell/ZoomBadge";
 import { Workspace } from "@/shell/Workspace";
 import { MobileChatSheet } from "@/routes/window/chat/MobileChatSheet";
 import { MobileVoicePill } from "@/routes/voice/MobileVoicePill";
@@ -57,9 +63,7 @@ export function AppShell() {
   // Sync theme to <html data-theme="…"> globally — used to live in the
   // settings General pane, which only mounts on /settings, so theme didn't track
   // on other routes after a setTheme + navigate-away.
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+  useEffect(() => applyTheme(theme), [theme]);
   useSnapshotSubscription();
   usePublishUiLocation();
   useScrollRestoration(scrollRef);
@@ -67,11 +71,17 @@ export function AppShell() {
   useVoiceSession();
 
   return (
-    <TopBarActionsProvider>
+    <PaneHeaderSlotsProvider>
     <div className="flex h-dvh w-full overflow-hidden">
       {!isMobile && <Sidebar />}
+      {/* The column wrapper exists for the desktop shell's title strip above
+          the workspace (the sidebar carries its own); in the browser the strip
+          renders nothing and the wrapper is inert. */}
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col">
+      {!isMobile && <TitlebarStrip />}
+      <BackendBanner />
       <Workspace scrollRef={scrollRef}>
-        <TopBar />
+        {isMobile ? <TopBar /> : <PaneHeader />}
         <main
           ref={scrollRef}
           className="flex-1 min-w-0 min-h-0 overflow-auto scrollbar-thin [scrollbar-gutter:stable] flex flex-col"
@@ -88,14 +98,17 @@ export function AppShell() {
           </WorkerCanvasCache>
         </main>
       </Workspace>
+      </div>
       {isMobile && <MobileChatSheet />}
       {isMobile && <MobileVoicePill />}
       <Toaster richColors position="top-center" />
       <BannerToaster />
       <ConnectionIndicator />
+      <ZoomBadge />
+      <DockBadge />
       <ConfirmHost />
     </div>
-    </TopBarActionsProvider>
+    </PaneHeaderSlotsProvider>
   );
 }
 

@@ -25,3 +25,11 @@ export function isTauriRuntime(): boolean {
 export function isDesktopRuntime(): boolean {
   return isTauriRuntime() || Boolean(mandateDesktopConfig()?.apiBaseUrl);
 }
+
+/** Stamps `<html data-shell="desktop">` when running inside the Tauri webview,
+ *  and removes it otherwise. Called once before first render, so the
+ *  traffic-light spacer (CSS keyed on the attribute) never pops in late. */
+export function applyShellFlag(doc: Document = document): void {
+  if (isTauriRuntime()) doc.documentElement.setAttribute("data-shell", "desktop");
+  else doc.documentElement.removeAttribute("data-shell");
+}

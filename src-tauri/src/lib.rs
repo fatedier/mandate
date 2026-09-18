@@ -1,17 +1,23 @@
 use std::{
+    collections::VecDeque,
     env, fs,
     net::{TcpListener, TcpStream},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     thread,
     time::{Duration, Instant},
 };
 
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::TrayIconBuilder,
-    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
 };
 use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
@@ -30,6 +36,35 @@ struct MandateSidecar {
     child: Arc<Mutex<Option<CommandChild>>>,
     host: String,
     port: u16,
+    /// Set right before we kill the child ourselves (quit, restart, replace),
+    /// so its Terminated event is not mistaken for a crash.
+    expected_exit: Arc<AtomicBool>,
+    /// When the sidecar died on its own, within the crash window.
+    crashes: Arc<Mutex<Vec<Instant>>>,
+    /// The last lines the sidecar printed, for the "Show log" dialog.
+    log: Arc<Mutex<VecDeque<String>>>,
+}
+
+/// Event the webview listens for; payload is a `BackendStatus`.
+const BACKEND_EVENT: &str = "mandate:backend";
+const BACKEND_LOG_LINES: usize = 200;
+/// Unexpected exits are restarted automatically up to this many times within
+/// `CRASH_WINDOW`; after that the shell stops trying and hands it to the user.
+const CRASH_LIMIT: usize = 3;
+const CRASH_WINDOW: Duration = Duration::from_secs(60);
+
+#[derive(Clone, serde::Serialize)]
+#[serde(tag = "state", rename_all = "lowercase")]
+enum BackendStatus {
+    Running,
+    Restarting { attempt: usize, code: Option<i32> },
+    Stopped { attempts: usize, code: Option<i32> },
+}
+
+fn emit_backend_status(app: &AppHandle, status: BackendStatus) {
+    if let Err(error) = app.emit(BACKEND_EVENT, status) {
+        eprintln!("[mandate-desktop] backend status event failed: {error}");
+    }
 }
 
 impl MandateSidecar {
@@ -38,11 +73,17 @@ impl MandateSidecar {
             child: Arc::new(Mutex::new(None)),
             host,
             port,
+            expected_exit: Arc::new(AtomicBool::new(false)),
+            crashes: Arc::new(Mutex::new(Vec::new())),
+            log: Arc::new(Mutex::new(VecDeque::with_capacity(BACKEND_LOG_LINES))),
         }
     }
 
     fn start(&self, app: &AppHandle) -> Result<(), String> {
         let port_arg = self.port.to_string();
+        // The sidecar watches this pid and shuts down when we are gone, so a
+        // crashed or force-quit shell leaves no server holding the port.
+        let parent_pid = std::process::id().to_string();
         let command = app
             .shell()
             .sidecar("mandate")
@@ -53,12 +94,15 @@ impl MandateSidecar {
                 self.host.as_str(),
                 "--port",
                 port_arg.as_str(),
+                "--parent-pid",
+                parent_pid.as_str(),
             ])
             .env("PATH", desktop_path());
 
         let (mut rx, child) = command
             .spawn()
             .map_err(|error| format!("failed to start mandate sidecar: {error}"))?;
+        let pid = child.pid();
 
         if let Some(existing) = self
             .child
@@ -66,19 +110,44 @@ impl MandateSidecar {
             .expect("sidecar lock poisoned")
             .replace(child)
         {
+            self.expected_exit.store(true, Ordering::SeqCst);
             if let Err(error) = existing.kill() {
                 eprintln!("[mandate-desktop] failed to stop replaced sidecar: {error}");
             }
         }
 
+        let sidecar = self.clone();
+        let app = app.clone();
         tauri::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(bytes) => {
-                        print!("{}", String::from_utf8_lossy(&bytes));
+                        let text = String::from_utf8_lossy(&bytes);
+                        print!("{text}");
+                        sidecar.remember_log(&text);
                     }
                     CommandEvent::Stderr(bytes) => {
-                        eprint!("{}", String::from_utf8_lossy(&bytes));
+                        let text = String::from_utf8_lossy(&bytes);
+                        eprint!("{text}");
+                        sidecar.remember_log(&text);
+                    }
+                    CommandEvent::Terminated(payload) => {
+                        // Drop our own dead handle, and only our own: after a
+                        // restart the slot may already hold the replacement.
+                        // Leaving a dead handle in place made the next start()
+                        // "replace" it, flag that as an expected exit, and so
+                        // ignore the replacement's real crash (seen 2026-09-18).
+                        {
+                            let mut slot = sidecar.child.lock().expect("sidecar lock poisoned");
+                            if slot.as_ref().map(|c| c.pid()) == Some(pid) {
+                                slot.take();
+                            }
+                        }
+                        if sidecar.expected_exit.swap(false, Ordering::SeqCst) {
+                            break;
+                        }
+                        sidecar.on_unexpected_exit(&app, payload.code);
+                        break;
                     }
                     _ => {}
                 }
@@ -88,8 +157,56 @@ impl MandateSidecar {
         Ok(())
     }
 
+    fn remember_log(&self, text: &str) {
+        let mut log = self.log.lock().expect("sidecar log poisoned");
+        for line in text.lines() {
+            if log.len() == BACKEND_LOG_LINES {
+                log.pop_front();
+            }
+            log.push_back(line.to_string());
+        }
+    }
+
+    fn recent_log(&self) -> Vec<String> {
+        self.log.lock().expect("sidecar log poisoned").iter().cloned().collect()
+    }
+
+    /// The sidecar died without us asking. Restart it, up to `CRASH_LIMIT`
+    /// times per `CRASH_WINDOW`; past that, report Stopped and wait for the
+    /// user's Restart. Runs the restart off the event thread.
+    fn on_unexpected_exit(&self, app: &AppHandle, code: Option<i32>) {
+        let attempt = {
+            let mut crashes = self.crashes.lock().expect("sidecar crashes poisoned");
+            let now = Instant::now();
+            crashes.retain(|at| now.duration_since(*at) < CRASH_WINDOW);
+            crashes.push(now);
+            crashes.len()
+        };
+        if attempt > CRASH_LIMIT {
+            eprintln!("[mandate-desktop] sidecar exited unexpectedly (code {code:?}) again; giving up after {CRASH_LIMIT} restarts in {}s", CRASH_WINDOW.as_secs());
+            emit_backend_status(app, BackendStatus::Stopped { attempts: CRASH_LIMIT, code });
+            return;
+        }
+        eprintln!("[mandate-desktop] sidecar exited unexpectedly (code {code:?}); restart {attempt}/{CRASH_LIMIT}");
+        emit_backend_status(app, BackendStatus::Restarting { attempt, code });
+        let sidecar = self.clone();
+        let app = app.clone();
+        thread::spawn(move || {
+            let connect_host = sidecar_connect_host(&sidecar.host);
+            let ok = sidecar.start(&app).is_ok()
+                && wait_for_server(&connect_host, sidecar.port, Duration::from_secs(20));
+            if ok {
+                emit_backend_status(&app, BackendStatus::Running);
+            } else {
+                sidecar.kill();
+                emit_backend_status(&app, BackendStatus::Stopped { attempts: attempt, code });
+            }
+        });
+    }
+
     fn kill(&self) {
         if let Some(child) = self.child.lock().expect("sidecar lock poisoned").take() {
+            self.expected_exit.store(true, Ordering::SeqCst);
             if let Err(error) = child.kill() {
                 eprintln!("[mandate-desktop] failed to stop sidecar: {error}");
             }
@@ -361,6 +478,73 @@ fn desktop_path() -> String {
     paths.join(":")
 }
 
+/// ⌘W / the close button: the app lives in the tray, so the window hides
+/// instead of closing. A macOS fullscreen window cannot simply be hidden —
+/// its Space stays behind as a black screen until the user leaves it by
+/// hand — so leave fullscreen first and hide once the transition is over.
+fn hide_to_tray(window: tauri::Window) {
+    save_window_state(window.app_handle());
+    if window.is_fullscreen().unwrap_or(false) {
+        if let Err(error) = window.set_fullscreen(false) {
+            eprintln!("[mandate-desktop] failed to leave fullscreen: {error}");
+        }
+        thread::spawn(move || {
+            // The leave-fullscreen animation takes ~0.6s; `is_fullscreen`
+            // flips early in it, so wait for the flip and then some.
+            for _ in 0..40 {
+                thread::sleep(Duration::from_millis(50));
+                if !window.is_fullscreen().unwrap_or(true) {
+                    break;
+                }
+            }
+            thread::sleep(Duration::from_millis(700));
+            if let Err(error) = window.hide() {
+                eprintln!("[mandate-desktop] failed to hide window: {error}");
+            }
+        });
+        return;
+    }
+    if let Err(error) = window.hide() {
+        eprintln!("[mandate-desktop] failed to hide window: {error}");
+    }
+}
+
+/// `--panel` of the theme the system is in: dark #1e1e21, light #f5f5f7.
+fn first_frame_color() -> tauri::window::Color {
+    if system_prefers_dark() {
+        tauri::window::Color(0x1e, 0x1e, 0x21, 0xff)
+    } else {
+        tauri::window::Color(0xf5, 0xf5, 0xf7, 0xff)
+    }
+}
+
+/// macOS appearance, read the way the system exposes it to scripts: the
+/// global default `AppleInterfaceStyle` is "Dark" in dark mode and absent
+/// (the command fails) in light mode.
+#[cfg(target_os = "macos")]
+fn system_prefers_dark() -> bool {
+    std::process::Command::new("defaults")
+        .args(["read", "-g", "AppleInterfaceStyle"])
+        .output()
+        .map(|out| out.status.success() && String::from_utf8_lossy(&out.stdout).trim().eq_ignore_ascii_case("dark"))
+        .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn system_prefers_dark() -> bool {
+    true
+}
+
+const WINDOW_STATE_FLAGS: StateFlags = StateFlags::SIZE
+    .union(StateFlags::POSITION)
+    .union(StateFlags::MAXIMIZED);
+
+fn save_window_state(app: &AppHandle) {
+    if let Err(error) = app.save_window_state(WINDOW_STATE_FLAGS) {
+        eprintln!("[mandate-desktop] failed to save window state: {error}");
+    }
+}
+
 fn show_main_window(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     if let Err(error) = app.show() {
@@ -462,6 +646,96 @@ fn tray_template_icon() -> Image<'static> {
     Image::new_owned(rgba, WIDTH, HEIGHT)
 }
 
+const ZOOM_IN_ID: &str = "zoom-in";
+const ZOOM_OUT_ID: &str = "zoom-out";
+const ZOOM_RESET_ID: &str = "zoom-reset";
+/// Event the webview listens for; payload is "in" / "out" / "reset".
+const ZOOM_EVENT: &str = "mandate:zoom";
+
+/// The macOS menu bar: Tauri's default menu with a View submenu that carries
+/// interface zoom (Zoom In ⌘=, Zoom Out ⌘−, Actual Size ⌘0) ahead of the
+/// fullscreen toggle. The accelerators are what make ⌘= / ⌘− / ⌘0 work
+/// system-wide in the app; the items only emit an event, the webview owns the
+/// factor (lib/desktop-zoom.ts) and remembers it.
+#[cfg(target_os = "macos")]
+fn build_app_menu(app: &tauri::App) -> tauri::Result<Menu<tauri::Wry>> {
+    let handle = app.handle();
+    let pkg = handle.package_info();
+    let about = AboutMetadata {
+        name: Some(pkg.name.clone()),
+        version: Some(pkg.version.to_string()),
+        ..Default::default()
+    };
+    let app_menu = Submenu::with_items(
+        handle,
+        pkg.name.clone(),
+        true,
+        &[
+            &PredefinedMenuItem::about(handle, None, Some(about))?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::services(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::hide(handle, None)?,
+            &PredefinedMenuItem::hide_others(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::quit(handle, None)?,
+        ],
+    )?;
+    let file_menu = Submenu::with_items(
+        handle,
+        "File",
+        true,
+        &[&PredefinedMenuItem::close_window(handle, None)?],
+    )?;
+    let edit_menu = Submenu::with_items(
+        handle,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(handle, None)?,
+            &PredefinedMenuItem::redo(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::cut(handle, None)?,
+            &PredefinedMenuItem::copy(handle, None)?,
+            &PredefinedMenuItem::paste(handle, None)?,
+            &PredefinedMenuItem::select_all(handle, None)?,
+        ],
+    )?;
+    let view_menu = Submenu::with_items(
+        handle,
+        "View",
+        true,
+        &[
+            &MenuItem::with_id(handle, ZOOM_IN_ID, "Zoom In", true, Some("CmdOrCtrl+="))?,
+            &MenuItem::with_id(handle, ZOOM_OUT_ID, "Zoom Out", true, Some("CmdOrCtrl+-"))?,
+            &MenuItem::with_id(handle, ZOOM_RESET_ID, "Actual Size", true, Some("CmdOrCtrl+0"))?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::fullscreen(handle, None)?,
+        ],
+    )?;
+    let window_menu = Submenu::with_items(
+        handle,
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(handle, None)?,
+            &PredefinedMenuItem::maximize(handle, None)?,
+            &PredefinedMenuItem::separator(handle)?,
+            &PredefinedMenuItem::close_window(handle, None)?,
+        ],
+    )?;
+    Menu::with_items(handle, &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])
+}
+
+fn zoom_direction(id: &str) -> Option<&'static str> {
+    match id {
+        ZOOM_IN_ID => Some("in"),
+        ZOOM_OUT_ID => Some("out"),
+        ZOOM_RESET_ID => Some("reset"),
+        _ => None,
+    }
+}
+
 fn install_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, MENU_OPEN_ID, "Open Mandate", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
@@ -494,9 +768,20 @@ async fn restart_backend(
     sidecar: tauri::State<'_, MandateSidecar>,
 ) -> Result<(), String> {
     let sidecar = sidecar.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || sidecar.restart(&app))
+    let handle = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || sidecar.restart(&app))
         .await
-        .map_err(|error| format!("backend restart task failed: {error}"))?
+        .map_err(|error| format!("backend restart task failed: {error}"))?;
+    if result.is_ok() {
+        emit_backend_status(&handle, BackendStatus::Running);
+    }
+    result
+}
+
+/// The last lines the sidecar printed (stdout and stderr, in order).
+#[tauri::command]
+fn backend_log(sidecar: tauri::State<'_, MandateSidecar>) -> Vec<String> {
+    sidecar.recent_log()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -508,7 +793,23 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![restart_backend])
+        // Size, position and maximized state persist per machine: the plugin
+        // restores them when the window is ready and tracks moves/resizes; we
+        // save on hide-to-tray and on quit. Fullscreen is left out on purpose:
+        // the app reopens as a normal window, like a native one.
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(WINDOW_STATE_FLAGS)
+                .build(),
+        )
+        .invoke_handler(tauri::generate_handler![restart_backend, backend_log])
+        .on_menu_event(|app, event| {
+            if let Some(direction) = zoom_direction(event.id().as_ref()) {
+                if let Err(error) = app.emit(ZOOM_EVENT, direction) {
+                    eprintln!("[mandate-desktop] zoom event failed: {error}");
+                }
+            }
+        })
         .setup(|app| {
             let (host, port) = select_sidecar_endpoint()?;
             let connect_host = sidecar_connect_host(&host);
@@ -516,6 +817,8 @@ pub fn run() {
             sidecar.start(app.handle())?;
             app.manage(sidecar);
             install_tray(app)?;
+            #[cfg(target_os = "macos")]
+            app.set_menu(build_app_menu(app)?)?;
 
             let app_handle = app.handle().clone();
             thread::spawn(move || {
@@ -535,12 +838,35 @@ pub fn run() {
                 .resizable(true)
                 .initialization_script(desktop_init_script(&connect_host, port));
 
+                // Overlay title bar: the web UI draws under the traffic lights and
+                // gives them a 28px strip (shell/TitlebarStrip.tsx) above each
+                // column, the height of a standard title bar. The inset is not
+                // the lights' top edge: measured on screenshots across three
+                // values, the visible circles' centre sits at y - 4 (the
+                // accessibility API's 16px button frames are not centred on the
+                // circles, so they mislead by 2px). y = 20 puts the centre at 16,
+                // 2px below the strip's middle, where the user wanted them; x = 14 lands them at 15, level with the sidebar's
+                // brand mark.
+                // The background colour is the --panel token of the theme that
+                // will show, so the first frame is the sidebar's colour and not
+                // a flash of the other theme. The shell cannot read the page's
+                // own preference, so it follows the system appearance — right
+                // for the default (System) and for whoever's explicit choice
+                // matches it; a test pins both values to the stylesheet.
                 #[cfg(target_os = "macos")]
-                let window_builder = window_builder.hidden_title(true);
+                let window_builder = window_builder
+                    .hidden_title(true)
+                    .title_bar_style(tauri::TitleBarStyle::Overlay)
+                    .traffic_light_position(tauri::LogicalPosition::new(14.0, 20.0))
+                    .background_color(first_frame_color());
 
-                let window_result = window_builder.build();
-
-                if let Err(error) = window_result {
+                // The window-state plugin restores the remembered geometry
+                // itself when the window is ready (its on_window_ready hook),
+                // before the first paint. Do NOT also call restore_state here:
+                // the hook and an explicit call from this thread deadlock on the
+                // plugin's restore guard, and the app comes up with no window,
+                // no menu bar and no error (seen 2026-09-18, twice).
+                if let Err(error) = window_builder.build() {
                     eprintln!("[mandate-desktop] failed to create window: {error}");
                 }
             });
@@ -550,9 +876,7 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                if let Err(error) = window.hide() {
-                    eprintln!("[mandate-desktop] failed to hide window: {error}");
-                }
+                hide_to_tray(window.clone());
             }
         })
         .build(tauri::generate_context!())
@@ -560,6 +884,7 @@ pub fn run() {
 
     app.run(|app_handle, event| match event {
         RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+            save_window_state(app_handle);
             let sidecar = app_handle.state::<MandateSidecar>();
             sidecar.kill();
         }

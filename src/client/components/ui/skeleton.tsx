@@ -19,7 +19,7 @@ export function ListRowSkeleton({ rows = 3 }: { rows?: number }) {
       {Array.from({ length: rows }).map((_, i) => (
         <li
           key={i}
-          className="flex items-center gap-3 rounded-lg border border-border-soft bg-card p-4"
+          className="flex items-center gap-3 rounded-lg border border-border-soft bg-panel p-4"
         >
           <div className="flex-1 min-w-0 flex flex-col gap-2">
             <Skeleton className="h-4 w-32" />

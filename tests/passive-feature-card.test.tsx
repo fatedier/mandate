@@ -1,10 +1,14 @@
-import { expect, test, beforeEach } from "bun:test";
+import { expect, test, beforeEach, afterEach } from "bun:test";
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
-import { PassiveFeatureCard } from "../src/client/routes/projects/PassiveFeatureCard";
+import { FeatureRow } from "../src/client/routes/projects/FeatureRow.js";
 import type { Feature } from "../src/client/store/projects";
 import type { WorkItemDto } from "../src/shared/api/work-items";
+import { fakePhoneWidth } from "./fake-phone-width";
+
+let restoreWidth: (() => void) | null = null;
+afterEach(() => { restoreWidth?.(); restoreWidth = null; });
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -45,7 +49,7 @@ test("renders phase chip, phaseDetail, feature name (no badge when needsUser is 
   act(() => {
     root.render(
       <MemoryRouter>
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="p"
           feature={makeFeature()}
           item={makeItem()}
@@ -62,15 +66,16 @@ test("renders phase chip, phaseDetail, feature name (no badge when needsUser is 
   expect(text).toContain("feat-foo");
 });
 
-// PassiveFeatureCard intentionally renders NO needsUser badge: flagged items
-// (needsUser=input/review) surface via the cross-project "Needs you" strip and
-// the pinned TopFeatureCard instead — the passive grid stays calm by design.
+// The passive row intentionally renders NO needsUser pill: flagged items
+// (needsUser=input/review) surface via the sidebar's Needs-you list and the
+// top-variant row instead (§3.2 forbids a cross-project strip) — the passive
+// list stays calm by design.
 test("does not render a needsUser badge even when needsUser=review", () => {
   const root = createRoot(container);
   act(() => {
     root.render(
       <MemoryRouter>
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="p"
           feature={makeFeature()}
           item={makeItem({ needsUser: "review" })}
@@ -89,7 +94,7 @@ test("passive card has no chevron / expand button (compact mode)", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="p"
           feature={makeFeature()}
           item={makeItem({ summary: "## Plan\nstep 1" })}
@@ -112,7 +117,7 @@ test("pinned feature shows visible star at default opacity", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="p"
           feature={makeFeature({ pinnedAt: "2026-05-01T00:00:00Z" })}
           item={makeItem()}
@@ -124,11 +129,18 @@ test("pinned feature shows visible star at default opacity", () => {
   });
   // assert: a button with aria-label "Unpin" exists
   const buttons = container.getElementsByTagName("button");
-  let found = false;
+  let found: HTMLButtonElement | null = null;
   for (const b of Array.from(buttons)) {
-    if (b.getAttribute("aria-label") === "Unpin") found = true;
+    if (b.getAttribute("aria-label") === "Unpin") found = b;
   }
-  expect(found).toBe(true);
+  expect(found === null).toBe(false);
+  // Pinned is not a status: the filled star is the foreground colour, never
+  // the review amber it shared with the "Review" pill beside it.
+  const star = found!.querySelector("svg")!;
+  const tokens = star.getAttribute("class")!.split(/\s+/);
+  expect(tokens).toContain("fill-foreground");
+  expect(tokens).toContain("text-foreground");
+  expect(tokens).not.toContain("fill-status-review");
 });
 
 test("click on pin button calls onTogglePin and prevents navigation", () => {
@@ -137,7 +149,7 @@ test("click on pin button calls onTogglePin and prevents navigation", () => {
   act(() => {
     root.render(
       <MemoryRouter>
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="p"
           feature={makeFeature()}
           item={makeItem()}
@@ -162,12 +174,13 @@ test("click on pin button calls onTogglePin and prevents navigation", () => {
   expect(pinCalls).toBe(1);
 });
 
-// ── mobile Chat action ──────────────────────────────────────────────────────
-// happy-dom applies no stylesheet, so both breakpoints' controls are always in
-// the DOM and "is it visible" cannot be read off the node. Which breakpoint a
-// control belongs to is therefore asserted through the responsive utility that
-// gates it — and always by asserting the gate is PRESENT, never that some class
-// is absent (an absent class proves nothing about visibility).
+// ── row actions per breakpoint ─────────────────────────────────────────────
+// Which controls a row carries is decided by rendering on `useIsMobile()`, not
+// by CSS gates, so a phone test must narrow the window BEFORE mount
+// (fakePhoneWidth) and a desktop test simply mounts at happy-dom's 1024px.
+// happy-dom applies no stylesheet, so the one CSS gate that remains — the
+// hover slot's `md:group-hover:opacity-100` — is asserted through the utility
+// that sets it, always positively (an absent class proves nothing).
 
 /** className of `node` plus every ancestor up to, but excluding, `stop`. */
 function gateChain(node: Element, stop: Element): string {
@@ -188,69 +201,46 @@ function byLabel(root: HTMLElement, label: string | RegExp): HTMLButtonElement[]
 }
 
 const chatControls = (root: HTMLElement) => byLabel(root, "Chat about this feature");
-const pinControls = (root: HTMLElement) => byLabel(root, /^(Pin to top|Unpin)$/);
 
-function renderPassive(container: HTMLElement, onPromote?: () => void) {
-  const root = createRoot(container);
+test("desktop: exactly one Chat and one pin, both in the hover slot", () => {
   act(() => {
-    root.render(
+    createRoot(container).render(
       <MemoryRouter>
-        <PassiveFeatureCard
-          projectSlug="proj"
-          feature={makeFeature({ tmuxWindowName: "win-9" })}
-          item={makeItem()}
-          paneStatus={null}
-          onTogglePin={() => {}}
-          onPromote={onPromote}
-        />
+        <FeatureRow variant="passive" projectSlug="p" feature={makeFeature()} item={makeItem()} paneStatus="idle" onPromote={() => {}} onTogglePin={() => {}} />
       </MemoryRouter>
     );
   });
-  return root;
-}
-
-test("the row carries a Chat control for touch, gated by md:hidden rather than the pointer slot", () => {
-  renderPassive(container, () => {});
-
-  const chats = chatControls(container);
-  expect(chats).toHaveLength(2);
-
-  // One per breakpoint, and they are different nodes: the touch one is hidden
-  // from md up, the pointer one lives in HoverSwap's `hidden … md:flex` slot.
-  const touch = chats.filter((b) => gateChain(b, container).includes("md:hidden"));
-  const pointer = chats.filter((b) => gateChain(b, container).includes("md:flex"));
-  expect(touch).toHaveLength(1);
-  expect(pointer).toHaveLength(1);
-  expect(touch[0]).not.toBe(pointer[0]);
+  const row = container.querySelector('[data-slot="feature-row"]')!;
+  const chats = row.querySelectorAll('[aria-label="Chat about this feature"]');
+  const pins = row.querySelectorAll('[aria-label="Pin to top"]');
+  expect(chats.length).toBe(1);
+  expect(pins.length).toBe(1);
+  expect(gateChain(chats[0]!, row).split(/\s+/)).toContain("md:group-hover:opacity-100");
+  expect(row.querySelector('[data-slot="feature-actions-touch"]') === null).toBe(true);
 });
 
-test("desktop keeps exactly one Chat — the change adds no pointer-side duplicate", () => {
-  renderPassive(container, () => {});
-
-  // Everything gated by md:hidden is gone at >=768px, so what survives on
-  // desktop is what is left over — and there must be exactly one of it.
-  const survivesDesktop = chatControls(container)
-    .filter((b) => !gateChain(b, container).includes("md:hidden"));
-  expect(survivesDesktop).toHaveLength(1);
-  expect(gateChain(survivesDesktop[0]!, container)).toContain("md:flex");
-});
-
-test("the touch actions meet the 44px target ChangesTab already sets for mobile", () => {
-  renderPassive(container, () => {});
-
-  const touchChat = chatControls(container)
-    .find((b) => gateChain(b, container).includes("md:hidden"));
-  const touchPin = pinControls(container)
-    .find((b) => gateChain(b, container).includes("md:hidden"));
-  expect(touchChat).toBeDefined();
-  expect(touchPin).toBeDefined();
-
-  // No layout in happy-dom, so the utility is the observable. Assert it
-  // positively — h-11 is 44px, and the pin moved up from h-7 to match.
-  for (const button of [touchChat!, touchPin!]) {
-    expect(button.className).toContain("h-11");
-    expect(button.className).toContain("w-11");
-  }
+test("phone: a passive row is one line — no action row, no Chat, no pin, no slug chip", () => {
+  restoreWidth = fakePhoneWidth(390);
+  act(() => {
+    createRoot(container).render(
+      <MemoryRouter>
+        <FeatureRow variant="passive" projectSlug="p" feature={makeFeature()} item={makeItem({ title: "Auth migration" })} paneStatus="idle" onPromote={() => {}} onTogglePin={() => {}} />
+      </MemoryRouter>
+    );
+  });
+  const row = container.querySelector('[data-slot="feature-row"]')!;
+  expect(row.querySelector('[data-slot="feature-actions-touch"]') === null).toBe(true);
+  expect(row.querySelector('[data-slot="feature-slug"]') === null).toBe(true);
+  // The hover slot still exists in the DOM (display:none below md) — the
+  // contract is that nothing OUTSIDE it is a button.
+  const outsideHover = Array.from(row.querySelectorAll("button")).filter(
+    (b) => !gateChain(b, row).split(/\s+/).includes("md:group-hover:opacity-100")
+  );
+  expect(outsideHover.length).toBe(0);
+  // Stronger than the filter above: on a phone the passive row is render-
+  // branched, so the hover slot is empty and the row has no button at all.
+  expect(row.querySelectorAll("button").length).toBe(0);
+  expect(row.querySelector('[data-slot="feature-title"]')?.textContent).toBe("Auth migration");
 });
 
 test("tapping Chat promotes the item and does not navigate the row", () => {
@@ -277,7 +267,7 @@ test("tapping Chat promotes the item and does not navigate the row", () => {
     root.render(
       <MemoryRouter initialEntries={["/projects"]}>
         <LocationProbe />
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="proj"
           feature={makeFeature({ tmuxWindowName: "win-9" })}
           item={makeItem()}
@@ -290,12 +280,11 @@ test("tapping Chat promotes the item and does not navigate the row", () => {
   });
   expect(path).toBe("/projects");
 
-  const touchChat = chatControls(host)
-    .find((b) => gateChain(b, host).includes("md:hidden"));
-  expect(touchChat).toBeDefined();
+  const chat = chatControls(host)[0];
+  expect(chat).toBeDefined();
 
   const event = new MouseEvent("click", { bubbles: true, cancelable: true });
-  act(() => { touchChat!.dispatchEvent(event); });
+  act(() => { chat!.dispatchEvent(event); });
 
   expect(promoted).toBe(1);
   // preventDefault is what actually stops the Link: react-router's click
@@ -310,31 +299,15 @@ test("tapping Chat promotes the item and does not navigate the row", () => {
   outer.remove();
 });
 
-test("both breakpoints' Chat controls run the same onPromote handler", () => {
-  let promoted = 0;
-  renderPassive(container, () => { promoted++; });
-
-  for (const button of chatControls(container)) {
-    act(() => { button.click(); });
-  }
-  // Two affordances, one behaviour — the destination stays the card's
-  // (overview thread + ref pill), never the feature's own thread.
-  expect(promoted).toBe(2);
-});
-
-test("the row stays a single link to the feature page, with both pin controls intact", () => {
-  renderPassive(container, () => {});
-
-  const anchors = Array.from(container.getElementsByTagName("a"));
-  expect(anchors).toHaveLength(1);
-  expect(anchors[0]!.getAttribute("href")).toBe("/projects/proj/features/win-9");
-  // One pin per breakpoint slot, exactly as before the Chat action was added.
-  expect(pinControls(container)).toHaveLength(2);
-});
-
-test("a card with no onPromote renders no Chat control at either breakpoint", () => {
-  renderPassive(container);
-  expect(chatControls(container)).toHaveLength(0);
+test("a card with no onPromote renders no Chat control", () => {
+  act(() => {
+    createRoot(container).render(
+      <MemoryRouter>
+        <FeatureRow variant="passive" projectSlug="p" feature={makeFeature()} item={makeItem()} paneStatus="idle" />
+      </MemoryRouter>
+    );
+  });
+  expect(container.querySelector('[aria-label="Chat about this feature"]') === null).toBe(true);
 });
 
 test("passive card never shows body content inline (no preview, no expand)", () => {
@@ -342,7 +315,7 @@ test("passive card never shows body content inline (no preview, no expand)", () 
   act(() => {
     root.render(
       <MemoryRouter>
-        <PassiveFeatureCard
+        <FeatureRow variant="passive"
           projectSlug="p"
           feature={makeFeature()}
           item={makeItem({ summary: "## Plan\nimportant content" })}

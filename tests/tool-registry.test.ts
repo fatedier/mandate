@@ -30,7 +30,7 @@ test("ToolDispatcher: dispatches successful tool call", async () => {
   const dispatcher = new ToolDispatcher(reg);
   const r = await dispatcher.dispatch(
     { toolCallId: "c1", toolName: "add", args: { a: 2, b: 3 } },
-    { threadId: "t", wakeId: "w" }
+    { threadId: "t", wakeId: "w", scope: { kind: "manager", managerDir: "", projectWorkingDirs: [] } }
   );
   expect(r).toEqual({ result: { sum: 5 } });
 });
@@ -46,7 +46,7 @@ test("ToolDispatcher: catches handler error, returns isError result", async () =
   const dispatcher = new ToolDispatcher(reg);
   const r = await dispatcher.dispatch(
     { toolCallId: "c1", toolName: "fail", args: {} },
-    { threadId: "t", wakeId: "w" }
+    { threadId: "t", wakeId: "w", scope: { kind: "manager", managerDir: "", projectWorkingDirs: [] } }
   );
   expect(r.isError).toBe(true);
   expect(r.error!).toMatch(/boom/);
@@ -57,7 +57,7 @@ test("ToolDispatcher: rejects unknown tool name", async () => {
   const dispatcher = new ToolDispatcher(reg);
   const r = await dispatcher.dispatch(
     { toolCallId: "c1", toolName: "ghost", args: {} },
-    { threadId: "t", wakeId: "w" }
+    { threadId: "t", wakeId: "w", scope: { kind: "manager", managerDir: "", projectWorkingDirs: [] } }
   );
   expect(r.isError).toBe(true);
   expect(r.error!).toMatch(/unknown tool/i);
@@ -74,7 +74,7 @@ test("ToolDispatcher: validates args against zod schema", async () => {
   const dispatcher = new ToolDispatcher(reg);
   const r = await dispatcher.dispatch(
     { toolCallId: "c1", toolName: "needsString", args: { s: 123 } },
-    { threadId: "t", wakeId: "w" }
+    { threadId: "t", wakeId: "w", scope: { kind: "manager", managerDir: "", projectWorkingDirs: [] } }
   );
   expect(r.isError).toBe(true);
   expect(r.error!).toMatch(/validation|expected string/i);

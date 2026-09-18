@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { SkillRegistry } from "../src/server/modules/skills/skill-registry.js";
 import { buildSkillReferenceTool } from "../src/server/modules/skills/skill-reference-tool.js";
 import type { SkillEntry } from "../src/server/modules/skills/skill-loader.js";
+import type { ToolContext } from "../src/server/modules/agent/tool-registry.js";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -18,7 +19,10 @@ function entry(over: Partial<SkillEntry>): SkillEntry {
   };
 }
 
-const fakeCtx = { threadId: "t", wakeId: "w" };
+const fakeCtx: ToolContext = {
+  threadId: "t", wakeId: "w",
+  scope: { kind: "manager", managerDir: "/tmp", projectWorkingDirs: [] }
+};
 
 test("read_skill_reference: unknown skill returns error", async () => {
   const r = new SkillRegistry();

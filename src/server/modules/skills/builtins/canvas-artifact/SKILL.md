@@ -47,7 +47,7 @@ web app, redesign before publishing.
 Visual is the default; prose is the fallback when no visual form fits the
 fact. Conclusion first; visual weight tracks hierarchy. Code blocks use
 `<pre><code>` with soft wrap or horizontal overflow. Design for both desktop
-and narrow widths.
+and narrow widths (see Narrow widths below).
 
 A canvas fails two opposite ways: the flat gray admin panel, and loud AI
 slop (default indigo accent, purple→blue gradient hero, emoji icons, six
@@ -99,6 +99,20 @@ yourself: background, color palette, typography, spacing, depth.
 - Avoid viewport-height traps in embedded canvases: do not use `min-h-screen`,
   `h-screen`, `100vh`, or `100dvh` for the main canvas shell.
 
+## Narrow widths
+
+Feature canvases are read in a 600px desktop pane and on 390px phones. These
+rules are checked, not aspirational:
+
+- No fixed pixel widths on layout containers: use `w-full` or `max-w-*` with
+  percentages. Never `w-[1024px]`-style shells.
+- Multi-column grids collapse below 640px: write `grid-cols-1 sm:grid-cols-2`
+  (or `md:grid-cols-3`), never a bare `grid-cols-N` with N > 1.
+- Tables and wide code blocks sit inside an `overflow-x-auto` wrapper. Nothing
+  else may overflow horizontally at 360px.
+- No `min-w-[…]` above 320px on any element; body text is at least 12px.
+- Long identifiers (hashes, paths, URLs) get `break-all` or live in a code block.
+
 ## Publish Checklist
 
 Before every `canvas_publish`, verify:
@@ -107,7 +121,8 @@ Before every `canvas_publish`, verify:
 - It contains real content, not placeholders or vague labels.
 - It sets its own dark background and reads as a cohesive, designed page —
   not flat gray boxes on an undefined surface.
-- It remains usable at narrow widths.
+- At 360px wide nothing overflows except tables and code blocks in their
+  scroll wrappers; grids are single-column.
 - There is no internal page scrollbar for a feature Overview canvas.
 - Text is not clipped, overlapping, or hidden by fixed elements.
 - Every interactive control has visible behavior or is removed.

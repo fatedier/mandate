@@ -16,8 +16,8 @@ export function PaneZoomButton({ pane, zoomed, onClick, className }: Props) {
   return (
     <Button
       variant="ghost"
-      size="icon-sm"
-      className={cn("text-chrome", className)}
+      size="icon-xs"
+      className={cn("text-chrome hover:text-foreground", className)}
       data-pane-zoom={pane}
       aria-label={label}
       aria-pressed={zoomed}

@@ -6,6 +6,7 @@ import type { ActivityGroupKey, ActivitySummaryResponse } from "@shared/api-cont
 import { getClientId, respondToUiSummaryRequest } from "@/lib/ui-context";
 import { ActivityPage } from "@/routes/activity/ActivityPage";
 import { activitySummaryCache } from "@/routes/activity/useActivitySummary";
+import { PaneHeaderActionsSlot, PaneHeaderSlotsProvider } from "@/shell/pane-header-slots";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -235,10 +236,15 @@ async function renderPage(
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
+  // The page portals its header-band actions into the shell's slot; the slot
+  // is mounted here so those actions land inside the container the tests query.
   const tree = (
     <MemoryRouter initialEntries={[entry]}>
       <LocationProbe />
-      <ActivityPage />
+      <PaneHeaderSlotsProvider>
+        <PaneHeaderActionsSlot />
+        <ActivityPage />
+      </PaneHeaderSlotsProvider>
     </MemoryRouter>
   );
   await act(async () => {
@@ -1014,10 +1020,10 @@ test("the window survives a trip through the log and back", async () => {
   const page = await renderPage(SUMMARY, "/activity?days=7");
   const before = requestedUrls.length;
   await act(async () => {
-    [...page.querySelectorAll('[role="tab"]')].find((n) => n.textContent === "Logs")!.click();
+    [...page.querySelectorAll<HTMLElement>('[role="tab"]')].find((n) => n.textContent === "Logs")!.click();
   });
   await act(async () => {
-    [...page.querySelectorAll('[role="tab"]')].find((n) => n.textContent === "Overview")!.click();
+    [...page.querySelectorAll<HTMLElement>('[role="tab"]')].find((n) => n.textContent === "Overview")!.click();
   });
   // The log asks for nothing *of the summary* — it does fetch its own list —
   // so the answer already in hand is the one the Overview returns to. No
@@ -1034,4 +1040,33 @@ test("the window and the grouping are two independent choices", async () => {
   expect(pressedIn(page, "Group by")).toBe("purpose");
   expect(requestedUrls.some((url) => url.includes("days=7") && url.includes("group=purpose")))
     .toBe(true);
+});
+
+test("the header band holds the window group and refresh as 28px controls; there is no subtitle and no underline tabs", async () => {
+  const page = await renderPage();
+  // Scoped to this render's container: the slot is mounted inside it (see
+  // renderPage), and a document-wide query would find a leftover one first.
+  const slot = page.querySelector('[data-slot="pane-actions"]')!;
+  expect(slot === null).toBe(false);
+  const group = slot.querySelector('[data-slot="activity-window"]')!;
+  expect(group === null).toBe(false);
+  expect(group.getAttribute("role")).toBe("group");
+  const opts = Array.from(group.querySelectorAll("button"));
+  expect(opts.map((b) => b.textContent?.trim())).toEqual(["24h", "7d", "30d"]);
+  for (const b of opts) for (const t of ["h-7", "text-2xs"]) expect(b.className.split(/\s+/)).toContain(t);
+  // The default window (30d) is the pressed one, marked by the --sel fill and nothing else.
+  const pressed = opts.filter((b) => b.getAttribute("aria-pressed") === "true");
+  expect(pressed.map((b) => b.textContent?.trim())).toEqual(["30d"]);
+  expect(pressed[0]!.className.split(/\s+/)).toContain("bg-sel");
+  for (const b of opts.filter((b) => b.getAttribute("aria-pressed") !== "true")) expect(b.className.split(/\s+/)).not.toContain("bg-sel");
+  const refreshButtons = slot.querySelectorAll('button[aria-label="Refresh"]');
+  expect(refreshButtons.length).toBe(1);
+  expect(refreshButtons[0]!.className.split(/\s+/)).toContain("size-7");
+  expect(page.textContent).not.toContain("Every LLM call Mandate makes");
+  expect(page.innerHTML.includes("border-b-2")).toBe(false);
+  const tabs = page.querySelector('[data-slot="page-tabs"]')!;
+  expect(tabs.getAttribute("role")).toBe("tablist");
+  expect(Array.from(tabs.querySelectorAll('[role="tab"]')).map((t) => t.id)).toEqual(["activity-tab-overview", "activity-tab-breakdown", "activity-tab-logs"]);
+  const column = page.querySelector('[data-slot="page-column"]')!;
+  for (const t of ["max-w-[1280px]", "px-4", "md:px-8", "gap-6", "pt-1", "pb-6"]) expect(column.className.split(/\s+/)).toContain(t);
 });

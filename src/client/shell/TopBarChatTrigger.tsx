@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAgentChatStore } from "@/store/agent-chat";
 import { useChatTrigger } from "@/hooks/useChatTrigger";
 import { cn } from "@/lib/utils";
+import { UnreadBadge } from "@/components/UnreadBadge";
 
 /** Top-bar chat entry. Opens the current feature's chat on feature routes,
  *  otherwise opens overview chat.
@@ -19,16 +20,12 @@ export function TopBarChatTrigger() {
       variant="ghost"
       size="icon"
       onClick={() => openDrawer(targetScope)}
-      className={cn("relative", unread > 0 && "text-primary")}
+      className={cn("relative", unread > 0 && "text-status-review")}
       aria-label={label}
       title={label}
     >
       <MessageSquare className="h-4 w-4" />
-      {unread > 0 && (
-        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-2xs font-semibold num">
-          {unread > 99 ? "99+" : unread}
-        </span>
-      )}
+      <UnreadBadge count={unread} className="absolute -top-1 -right-1" />
     </Button>
   );
 }

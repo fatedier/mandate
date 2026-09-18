@@ -35,7 +35,7 @@ export function DailyChart({ daily }: { daily: ActivityDailyDto[] }) {
               would be invisible exactly where the tooltip matters most. */}
           {hovered !== null && (
             <rect data-chart-band x={hovered * width} y={0} width={width} height={100}
-                  className="fill-muted/45" />
+                  className="fill-sel" />
           )}
           {daily.map((day, index) => {
             const height = (day.calls / peak) * 100;
@@ -45,10 +45,10 @@ export function DailyChart({ daily }: { daily: ActivityDailyDto[] }) {
             return (
               <g key={day.date}>
                 <rect x={x} y={100 - height} width={barWidth} height={height}
-                      className={hovered === index ? "fill-primary" : "fill-primary/55"} />
+                      className={hovered === index ? "fill-muted-foreground" : "fill-faint"} />
                 {failedHeight > 0.3 && (
                   <rect x={x} y={100 - failedHeight} width={barWidth} height={failedHeight}
-                        className="fill-destructive" />
+                        className="fill-status-input" />
                 )}
               </g>
             );
@@ -74,7 +74,7 @@ export function DailyChart({ daily }: { daily: ActivityDailyDto[] }) {
         </svg>
       </div>
 
-      <div className="flex justify-between pt-1 text-2xs text-chrome">
+      <div className="flex justify-between pt-1 text-2xs text-faint">
         <span className="num">{daily[0]?.date}</span>
         <span className="num">{daily[daily.length - 1]?.date}</span>
       </div>
@@ -116,9 +116,9 @@ function DayCard({
       style={style}
       // Pointer events off: the card sits over the hit targets, and a pointer
       // that entered it would count as leaving the column and close it.
-      className="pointer-events-none absolute top-2 z-10 w-52 rounded-lg border border-border bg-popover/95 p-3 shadow-lg backdrop-blur-sm"
+      className="pointer-events-none absolute top-2 z-10 w-52 rounded-lg border border-border-soft bg-panel p-3 shadow-md"
     >
-      <div className="num text-2xs text-chrome">{day.date}</div>
+      <div className="num text-2xs text-faint">{day.date}</div>
       {/* The failure count belongs to the headline, not to the list: it is a
           subdivision of the calls beside it, and as a conditional row it made
           everything under it jump by a line on the days that had none — which
@@ -126,7 +126,7 @@ function DayCard({
           day, so a reader moving across the window compares fixed positions. */}
       <div className="num mt-0.5 text-lg leading-none text-foreground">
         {formatCount(day.calls)}
-        <span className="ml-1 text-2xs text-chrome">calls</span>
+        <span className="ml-1 text-2xs text-faint">calls</span>
         {day.failed > 0 && (
           <span className="ml-2 text-2xs text-destructive">
             {formatCount(day.failed)} failed
@@ -156,11 +156,11 @@ function DayCard({
   );
 }
 
-function Row({ label, value, tone }: { label: string; value: string; tone?: "alert" }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-chrome">{label}</dt>
-      <dd className={tone === "alert" ? "num text-destructive" : "num text-foreground"}>{value}</dd>
+      <dt className="text-faint">{label}</dt>
+      <dd className="num text-foreground">{value}</dd>
     </div>
   );
 }

@@ -80,7 +80,7 @@ export const MobileInputBar = forwardRef<HTMLDivElement, MobileInputBarProps>(fu
   };
 
   return (
-    <div ref={ref} className="grid grid-cols-7 gap-1.5 p-1.5 bg-card border-t border-border-soft">
+    <div ref={ref} className="grid grid-cols-7 gap-1.5 p-1.5 bg-panel border-t border-border-soft">
       {KEY_ROWS.flat().map((key) => {
         const active = (key.modifier === "ctrl" && ctrlActive) || (key.modifier === "alt" && altActive);
         return (
@@ -94,7 +94,7 @@ export const MobileInputBar = forwardRef<HTMLDivElement, MobileInputBarProps>(fu
             className={cn(
               "h-8 min-w-0 rounded-md border border-border-soft bg-muted px-1 text-2xs font-semibold text-foreground hover:bg-muted/70",
               "font-mono tabular-nums",
-              active && "border-primary bg-primary/15 text-primary"
+              active && "border-border bg-sel text-foreground font-semibold"
             )}
           >
             {key.label}

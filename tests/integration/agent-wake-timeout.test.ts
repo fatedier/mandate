@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { WakeScheduler } from "../../src/server/modules/agent/wake-loop.js";
 import { WakeLock } from "../../src/server/modules/agent/wake-lock.js";
+import type { AgentScope } from "../../src/server/modules/agent/tool-scope.js";
 import { AgentLlmCallRecorder } from "../../src/server/modules/activity/llm-call-recorder.js";
 import { SSE_EVENTS } from "../../src/shared/api-contracts.js";
 import { createTestWakeScheduler } from "../helpers/wake-scheduler.js";
@@ -8,7 +9,7 @@ import { freshAgentEnv } from "../helpers/fixtures.js";
 import { createMockLLM, createScriptedStreamLLM } from "../helpers/mock-llm.js";
 
 const STUB_PROMPT = () => "system";
-const STUB_SCOPE = () => ({});
+const STUB_SCOPE = (): AgentScope => ({ kind: "worker", feature: { workingDir: "/tmp/stub" }, project: { workingDir: "/tmp/stub" } });
 const STUB_DISPATCHER = { registry: { tools: {} as any }, async dispatch() { return { result: {} }; } };
 
 function recorder(env: ReturnType<typeof freshAgentEnv>, provider: string, model: string, baseURL = "") {

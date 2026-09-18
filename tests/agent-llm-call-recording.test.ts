@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { MandateStore } from "../src/server/app/store.js";
 import { AgentStore } from "../src/server/modules/agent/agent-store.js";
+import type { AgentScope } from "../src/server/modules/agent/tool-scope.js";
 import { WakeLock } from "../src/server/modules/agent/wake-lock.js";
 import { DEFAULT_CONFIG } from "../src/server/config/defaults.js";
 import { createAgentRuntimeLlmRecorders } from "../src/server/runtime/agent-llm-recorders.js";
@@ -22,7 +23,7 @@ function fresh() {
 }
 
 const STUB_PROMPT = () => "system";
-const STUB_SCOPE = () => ({});
+const STUB_SCOPE = (): AgentScope => ({ kind: "manager", managerDir: os.tmpdir(), projectWorkingDirs: [] });
 const STUB_DISPATCHER = { registry: { tools: {} as any }, async dispatch() { return { result: {} }; } };
 
 test("sanitizeForLlmLog: redacts view_image payload bytes", () => {

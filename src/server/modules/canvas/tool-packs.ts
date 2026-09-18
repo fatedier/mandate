@@ -104,6 +104,7 @@ function buildCanvasCreateTool(
       "Write a complete HTML document (<!doctype html>...) to the returned sourcePath, " +
       "then call canvas_publish. Mandate renders it inside a sandboxed iframe; " +
       "Tailwind classes work out of the box and the iframe sizes itself to body height. " +
+      "Follow the skill's narrow-width rules: fluid containers, grids that collapse below 640px, tables in overflow-x-auto — the card is 358px wide on phones. " +
       "Canvas is a shipped product surface — reference high-end SaaS product UI (Linear, Vercel, Stripe quality), not an admin dashboard or status report. " +
       "Conclusion first; visual weight tracks hierarchy. " +
       "You own the whole design: it is a self-contained page in its own iframe, not app chrome. Set your own dark background and a real palette (gradients, colored rings, accent text, shadows). " +

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { SimpleSelect, type SimpleSelectOption } from "@/components/ui/select";
 import { CallDetailPanel } from "../CallDetailPanel";
-import { ActivitySkeleton } from "../ActivitySkeleton";
+import { ActivityListSkeleton } from "../ActivitySkeleton";
 import { useActivityData } from "../useActivityData";
 import { useActivityFilters } from "../useActivityFilters";
 import { useLogsPageSummary } from "../useActivityPageSummary";
@@ -123,10 +123,10 @@ export function LogsTab({ refreshToken }: LogsTabProps) {
   ].filter((item): item is ActiveFilterItem => Boolean(item));
 
   if (!currentData) {
-    if (initialLoading) return <ActivitySkeleton />;
+    if (initialLoading) return <ActivityListSkeleton />;
     return (
       <ErrorOr error={error}>
-        <div className="rounded-lg border border-border-soft bg-card p-6 text-center text-sm text-muted-foreground">
+        <div className="px-3.5 py-3 text-2xs text-faint">
           No data yet.
         </div>
       </ErrorOr>
@@ -138,7 +138,7 @@ export function LogsTab({ refreshToken }: LogsTabProps) {
       {/* The container the row's narrow rules query. Sized by the card, not by
           the viewport: the assistant dock is resizable, so the width a row
           actually gets has no fixed relationship to the window. */}
-      <section className="@container overflow-hidden rounded-lg border border-border-soft bg-card">
+      <section className="@container overflow-hidden rounded-lg border border-border-soft bg-panel">
         <header className="border-b border-border-soft">
           <div className="flex flex-wrap items-center gap-2 px-3 py-2">
             <h2 className="text-sm font-semibold">Recent calls</h2>
@@ -293,7 +293,7 @@ function FilterBar({
           value={query}
           onChange={(event) => setQuery(event.currentTarget.value)}
           placeholder="Call id, parent id, or hash"
-          className="h-8 w-full rounded-md border border-border-soft bg-background pl-7 pr-2 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="h-8 w-full rounded-md border border-border-soft bg-background pl-7 pr-2 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
         />
       </span>
       <button
@@ -323,7 +323,7 @@ function FilterSelect({
       value={value}
       options={options}
       onValueChange={onValueChange}
-      className="h-8 w-auto border-border-soft px-2 text-xs focus:border-primary focus:ring-primary/20"
+      className="h-8 w-auto border-border-soft px-2 text-xs focus:border-ring focus:ring-ring/30"
       contentClassName="max-w-[min(36rem,calc(100vw-2rem))]"
       itemClassName="text-xs"
     />
@@ -333,7 +333,7 @@ function FilterSelect({
 function ActiveFilters({ items }: { items: ActiveFilterItem[] }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5 border-t border-border-soft px-3 py-1.5 text-2xs text-foreground/65">
-      <span className="uppercase tracking-wider text-muted-foreground">Showing</span>
+      <span className="label-micro text-muted-foreground">Showing</span>
       {items.map((item) => (
         <button
           key={item.label}

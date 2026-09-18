@@ -1,7 +1,6 @@
-import { Suspense, lazy, useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { WorkItemDto } from "@shared/api/work-items";
-
-const WorkItemSummaryMarkdown = lazy(() => import("./WorkItemSummaryMarkdown"));
+import { LazyMarkdownView } from "@/components/LazyMarkdownView";
 import { cn } from "@/lib/utils";
 import { dedupeSummaryAgainstPhaseDetail } from "@/lib/work-item-summary";
 
@@ -39,8 +38,12 @@ const PHASE_COLOR: Record<WorkItemDto["phase"], string> = {
   done: "border border-phase-done/25 bg-phase-done/12 text-phase-done"
 };
 
-const SUMMARY_PROSE =
-  "prose prose-sm dark:prose-invert max-w-none leading-relaxed [overflow-wrap:anywhere]";
+// The summary is prose the agent wrote, so it is typeset by the same
+// MarkdownView as the transcript (14px / 1.6, the same code and heading
+// styles). It used to carry `prose prose-sm` classes, but the typography
+// plugin is not installed, so those were inert and the text fell through to
+// the 16px html default — which is why it never matched the chat beside it.
+const SUMMARY_BODY = "min-w-0 text-foreground";
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -85,13 +88,9 @@ function SummaryBody({ text, collapsible }: { text: string; collapsible: boolean
       // line-clamp caps the height without reserving it, so a short summary
       // still takes exactly the room it needs and nothing shifts when a long
       // one collapses back.
-      className={cn(SUMMARY_PROSE, collapsible && !expanded && "line-clamp-3")}
+      className={cn(SUMMARY_BODY, collapsible && !expanded && "line-clamp-3")}
     >
-      {/* Raw text as the fallback, not a spinner: markdown reads fine
-          unformatted, so the summary is legible before the parser lands. */}
-      <Suspense fallback={<div className="whitespace-pre-wrap">{text}</div>}>
-        <WorkItemSummaryMarkdown text={text} />
-      </Suspense>
+      <LazyMarkdownView text={text} />
     </div>
   );
 

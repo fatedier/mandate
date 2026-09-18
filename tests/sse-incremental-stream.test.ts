@@ -45,7 +45,7 @@ function fixture() {
 }
 
 function assistant(wakeId = "w1", text = "done"): AgentClientMessageDto {
-  return { id: `message-${text}`, threadId: "t1", wakeId, seq: 1, role: "assistant", source: "self", content: { type: "assistant", text }, createdAt: "2026-09-13" };
+  return { id: `message-${text}`, threadId: "t1", wakeId, seq: 1, role: "assistant", source: "self", sourceThreadId: null, content: { type: "assistant", text }, createdAt: "2026-09-13" };
 }
 
 test("coalesced patches carry all coalesced text while existing clients retain the full-text protocol", async () => {
@@ -112,7 +112,7 @@ test("finishing another wake does not drop an active stream", async () => {
   h.delta("new", "w2");
   h.sse.flushMessageDelta("t1", "w2");
   await client.next();
-  h.sse.emit("agentWakeFinished", { threadId: "t1", wakeId: "w1", status: "succeeded" });
+  h.sse.emit("agentWakeFinished", { threadId: "t1", wakeId: "w1", status: "finished" });
   await client.next();
   h.delta("new text", "w2");
   h.sse.flushMessageDelta("t1", "w2");

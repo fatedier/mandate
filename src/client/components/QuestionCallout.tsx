@@ -1,6 +1,7 @@
 import { useEffect, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { CircleQuestionMark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /** The agent's blocking question, surfaced as a first-class callout on
  *  attention cards, with an inline reply that posts to the worker
@@ -63,7 +64,7 @@ export function QuestionCallout({ question, onSend }: {
             <button
               type="button"
               onClick={(e) => { stop(e); setOpen(true); }}
-              className="shrink-0 rounded-md border border-primary/25 bg-primary/10 px-2.5 py-0.5 font-mono text-2xs font-semibold text-primary-soft transition-colors hover:bg-primary/20"
+              className="shrink-0 rounded-md border border-border bg-sel px-2.5 py-0.5 font-mono text-2xs font-semibold text-foreground"
             >
               Reply ↵
             </button>
@@ -85,14 +86,15 @@ export function QuestionCallout({ question, onSend }: {
               "placeholder:text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             )}
           />
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={(e) => { stop(e); void submit(); }}
             disabled={sending || text.trim().length === 0}
-            className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+            className="shrink-0 text-xs font-semibold"
           >
             {sending ? "Sending…" : "Send"}
-          </button>
+          </Button>
         </div>
       )}
       {error && (
