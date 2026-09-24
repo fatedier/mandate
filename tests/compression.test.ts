@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   estimateMessagesTokens,
   getCompressionGateDecision,
@@ -830,6 +830,26 @@ test("runAgentCompressionLlm rejects provider error finishes", async () => {
   })).rejects.toThrow("compression LLM finished with error");
 });
 
+test("runAgentCompressionLlm surfaces the provider's own error, not the SDK's generic no-output error", async () => {
+  // streamText hands a stream error only to onError; its result promises reject
+  // with "No output generated", which has no status — so the retry policy could
+  // not tell an overload from a bad request, and llm_calls recorded nothing useful.
+  const overloaded = Object.assign(new Error("Overloaded"), { status: 529 });
+  const model = createMockLLM([{ error: overloaded }], { mode: "stream" });
+  let caught: unknown;
+  try {
+    await runAgentCompressionLlm({
+      model: model as any,
+      provider: "codex",
+      system: "summarize",
+      messages: [{ role: "user", content: "text" }]
+    });
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBe(overloaded);
+});
+
 test("runAgentCompressionLlm uses streaming for OpenAI-compatible compression", async () => {
   const streamCalls: any[] = [];
   const model = {
@@ -1459,4 +1479,146 @@ test("compression refreshes a stale stored system prompt to the current template
   } finally {
     cleanup();
   }
+});
+
+describe("compression controller — model candidates", () => {
+  // The candidate loop is the shared one (modules/llm/run-candidates.ts); these
+  // pin that compression is wired to it rather than to a policy of its own.
+  const overloaded = () => Object.assign(new Error("Overloaded"), { status: 529 });
+
+  async function compressWith(
+    primaryScript: Parameters<typeof createMockLLM>[0],
+    fallbackScript: Parameters<typeof createMockLLM>[0]
+  ) {
+    const env = freshStoresEnv("md-cmp-candidates-");
+    const { store, projects, features, agentStore } = env;
+    const thread = agentStore.getOrCreateThread("manager", null);
+    agentStore.appendMessage({
+      threadId: thread.id, role: "user", source: "user",
+      content: { type: "text", text: "old ".repeat(90_000) }
+    });
+    agentStore.appendMessage({
+      threadId: thread.id, role: "user", source: "user",
+      content: { type: "text", text: "latest request" }
+    });
+    const primary = createMockLLM(primaryScript, { mode: "stream", provider: "codex", modelId: "gpt-5.5" });
+    const fallback = createMockLLM(fallbackScript, { mode: "stream", provider: "kilo", modelId: "gpt-5.5" });
+    const recorderFor = (provider: string) => new AgentLlmCallRecorder({
+      store, logRequests: "metadata", provider, model: "gpt-5.5", baseURL: "", apiMode: "streamText"
+    });
+    const primaryRecorder = recorderFor("codex");
+    const fallbackRecorder = recorderFor("kilo");
+    const controller = createAgentCompressionController({
+      config: { agent: { compressionThresholdTokens: 10 } } as any,
+      store,
+      projectsStore: projects,
+      featuresStore: features,
+      agentStore,
+      cursors: { resetThread: () => {} },
+      sse: { emit: () => {} } as any,
+      compressionForThread: () => ({
+        model: primary as any,
+        provider: "codex",
+        recorder: primaryRecorder,
+        candidates: [
+          { model: primary as any, provider: "codex", recorder: primaryRecorder },
+          { model: fallback as any, provider: "kilo", recorder: fallbackRecorder }
+        ]
+      }),
+      buildSystemPrompt: () => "system",
+      memoryManager: {} as any,
+      memoryExtractionForThread: () => ({
+        model: createMockLLM([{ text: "{\"memories\":[]}" }], { mode: "stream" }) as any,
+        provider: "mock",
+        recorder: recorderFor("mock")
+      })
+    });
+    let error: unknown = null;
+    try {
+      await controller.beforeModelCallHook(thread.id, {
+        wakeId: "wake-candidates", reason: "user", triggerMessageId: null, allowTools: true
+      });
+    } catch (err) {
+      error = err;
+    }
+    // Ordered by the attempt, not by listLlmCalls: a fallback starts in the same
+    // millisecond its predecessor failed, and the list breaks created_at ties
+    // on a random id.
+    const position = (m: any) => (m?.candidateIndex ?? 0) * 10 + (m?.attempt ?? 1);
+    const calls = store.listLlmCalls(50)
+      .filter((call) => call.purpose === "agent_compression")
+      .map((call) => ({ provider: call.provider, status: call.status, metadata: call.metadata as any }))
+      .sort((a, b) => position(a.metadata) - position(b.metadata));
+    const summary = agentStore.getMessages(thread.id).find((m) => m.source === "compression");
+    return { env, error, calls, primary, fallback, summary };
+  }
+
+  test("a retryable failure is retried once on the primary model, and the retry is not a fallback", async () => {
+    const r = await compressWith(
+      [{ error: overloaded() }, { text: "primary summary", finishReason: "stop" }],
+      [{ text: "fallback summary", finishReason: "stop" }]
+    );
+    try {
+      expect(r.error).toBe(null);
+      expect([r.primary.callsMade, r.fallback.callsMade]).toEqual([2, 0]);
+      expect(r.calls.map((c) => [c.provider, c.status])).toEqual([["codex", "failed"], ["codex", "succeeded"]]);
+      expect(r.calls[1]!.metadata).toMatchObject({ fallbackAttempt: false, candidateIndex: 0, attempt: 2 });
+    } finally { r.env.cleanup(); }
+  });
+
+  test("a model that finishes with an error goes straight to the fallback", async () => {
+    // Compression used to retry this three times on the same model; on
+    // production data that rescued none of four incidents.
+    const r = await compressWith(
+      [{ text: "", finishReason: "error" }, { text: "must not be reached", finishReason: "stop" }],
+      [{ text: "fallback summary", finishReason: "stop" }]
+    );
+    try {
+      expect(r.error).toBe(null);
+      expect([r.primary.callsMade, r.fallback.callsMade]).toEqual([1, 1]);
+      expect(r.calls.map((c) => [c.provider, c.status])).toEqual([["codex", "failed"], ["kilo", "succeeded"]]);
+      expect(r.calls[1]!.metadata).toMatchObject({ fallbackAttempt: true, candidateIndex: 1, attempt: 1 });
+      expect(r.summary?.content.type === "summary" ? r.summary.content.summary : "").toContain("fallback summary");
+    } finally { r.env.cleanup(); }
+  });
+
+  test("an empty summary gets one more try on the same model", async () => {
+    // A model that finishes normally with no text is a glitch of that call, not
+    // of the request. Without this, a setup with no fallback fails the wake.
+    const r = await compressWith(
+      [{ text: "", finishReason: "stop" }, { text: "primary summary", finishReason: "stop" }],
+      [{ text: "fallback summary", finishReason: "stop" }]
+    );
+    try {
+      expect(r.error).toBe(null);
+      expect([r.primary.callsMade, r.fallback.callsMade]).toEqual([2, 0]);
+      expect(r.summary?.content.type === "summary" ? r.summary.content.summary : "").toContain("primary summary");
+    } finally { r.env.cleanup(); }
+  });
+
+  test("a second empty summary moves on to the fallback", async () => {
+    const r = await compressWith(
+      [{ text: "", finishReason: "stop" }, { text: " ", finishReason: "stop" }, { text: "never", finishReason: "stop" }],
+      [{ text: "fallback summary", finishReason: "stop" }]
+    );
+    try {
+      expect(r.error).toBe(null);
+      expect([r.primary.callsMade, r.fallback.callsMade]).toEqual([2, 1]);
+    } finally { r.env.cleanup(); }
+  });
+
+  test("a content refusal is not retried on the same model", async () => {
+    const refusal = Object.assign(
+      new Error("This content was flagged for possible cybersecurity risk."),
+      { status: 500 }
+    );
+    const r = await compressWith(
+      [{ error: refusal }, { text: "must not be reached", finishReason: "stop" }],
+      [{ text: "fallback summary", finishReason: "stop" }]
+    );
+    try {
+      expect(r.error).toBe(null);
+      expect([r.primary.callsMade, r.fallback.callsMade]).toEqual([1, 1]);
+    } finally { r.env.cleanup(); }
+  });
 });

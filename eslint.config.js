@@ -30,6 +30,23 @@ export default [
     }
   },
   {
+    files: ["src/server/platform/**/*.ts"],
+    rules: {
+      // platform/ is the server's bottom layer (sqlite, tmux, git, fs, time,
+      // errors). It must not reach up into modules/, runtime/ or app/, even
+      // for a type: whatever platform needs from above is passed in (see
+      // SchemaContributor in platform/db/schema.ts). Matching is on the
+      // relative specifier, so it covers static imports and re-exports, not
+      // dynamic import().
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          regex: "^(\\.\\./)+(modules|runtime|app)(/|$)",
+          message: "platform/ is the bottom layer: pass what it needs in from app/ instead of importing modules/, runtime/ or app/."
+        }]
+      }]
+    }
+  },
+  {
     files: [
       "src/client/components/QuestionCallout.tsx",
       "src/client/hooks/useTerminalSession.ts",

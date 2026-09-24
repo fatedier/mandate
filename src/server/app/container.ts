@@ -203,6 +203,7 @@ export async function createAppContainer(): Promise<AppContainer> {
     },
     startBackgroundJobs: () => backgroundJobs.start(),
     async dispose() {
+      backgroundJobs.stop();
       runtime.dispose();
       await Promise.race([
         paneRuntimes.tmux.dispose(),

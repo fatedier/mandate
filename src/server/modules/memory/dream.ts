@@ -20,14 +20,7 @@ import {
 } from "../llm/reasoning.js";
 import { createFirstChunkTimeoutGuard } from "../llm/stream-timeout.js";
 import { LLM_STREAM_IDLE_TIMEOUT_MS, MEMORY_DREAM_STEP_LLM_TIMEOUT } from "../llm/timeouts.js";
-import {
-  errorMessage,
-  isNonFallbackLlmError,
-  isRetryableLlmError,
-  isTimeoutLlmError,
-  maxAttemptsForLlmCandidateCount,
-  retryDelayMs
-} from "../llm/retry-policy.js";
+import { llmAttemptMetadata, runLlmCandidates } from "../llm/run-candidates.js";
 import { newId } from "../../platform/ids.js";
 import { nowIso } from "../../platform/time/time.js";
 import { formatErrorMessage } from "../../platform/errors.js";
@@ -353,18 +346,13 @@ export class MemoryDreamer {
     messages: ModelMessage[];
     tools: ToolSet;
   }): Promise<Awaited<ReturnType<typeof collectStream>>> {
-    let lastError: unknown = null;
-    const maxAttemptsPerCandidate = maxAttemptsForLlmCandidateCount(input.candidates.length);
-    for (let candidateIndex = 0; candidateIndex < input.candidates.length; candidateIndex += 1) {
-      const candidate = input.candidates[candidateIndex]!;
-      for (let attempt = 1; attempt <= maxAttemptsPerCandidate; attempt += 1) {
+    return runLlmCandidates({
+      candidates: input.candidates,
+      attempt: async (candidate, at) => {
         const started = Date.now();
         const metadata = {
           ...input.metadata,
-          ...(candidateIndex === 0 && attempt === 1 ? {} : {
-            fallbackAttempt: true,
-            candidateIndex,
-            attempt,
+          ...llmAttemptMetadata(at, {
             provider: candidate.provider,
             model: candidate.modelName,
             reasoningEffort: candidate.reasoningEffort,
@@ -415,26 +403,12 @@ export class MemoryDreamer {
             metadata,
             latencyMs: Date.now() - started
           });
-          lastError = error;
-
-          const retryable = isRetryableLlmError(error) && !isTimeoutLlmError(error);
-          if (attempt < maxAttemptsPerCandidate && retryable) {
-            await delay(retryDelayMs(attempt));
-            continue;
-          }
-
-          if (candidateIndex < input.candidates.length - 1 && !isNonFallbackLlmError(error)) {
-            break;
-          }
           throw error;
         } finally {
           firstChunkGuard.cleanup();
         }
       }
-    }
-    throw lastError instanceof Error
-      ? lastError
-      : new Error(errorMessage(lastError) || "LLM call failed");
+    });
   }
 
   private llmCandidates(): MemoryDreamLlmCandidate[] {
@@ -1847,10 +1821,6 @@ function copyJsonErrorField(
   } else if (typeof value === "number" && Number.isFinite(value)) {
     target[key] = value;
   }
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function languageModelId(model: LanguageModel) {

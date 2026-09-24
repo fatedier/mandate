@@ -7,6 +7,7 @@ import {
   type StartLlmCallInput
 } from "../modules/activity/llm-call-store.js";
 import { FeatureWindowStore } from "../modules/features/feature-window-store.js";
+import { getMandateModules } from "../modules/registry.js";
 import { collectModuleMigrations, initializeDatabaseSchema } from "../platform/db/schema.js";
 import { runPendingMigrations } from "../platform/db/migrations.js";
 
@@ -26,13 +27,14 @@ export class MandateStore {
     // order reversed, against a full wait once the timeout is in force.
     this.db.exec("pragma busy_timeout = 5000");
     this.db.exec("pragma journal_mode = wal");
-    initializeDatabaseSchema(this.db);
+    const modules = getMandateModules();
+    initializeDatabaseSchema(this.db, modules);
     // Convergent DDL first so the schema is complete, then the one-shot
     // migrations that need it to be. Do not wrap this constructor in a
     // transaction: the runner creates schema_migrations inside whatever
     // transaction the caller holds, so a rollback would drop that table and a
     // failing migration would abort the caller's whole transaction.
-    runPendingMigrations(this.db, collectModuleMigrations());
+    runPendingMigrations(this.db, collectModuleMigrations(modules));
     this.featureWindows = new FeatureWindowStore(this.db);
     this.llmCalls = new LlmCallStore(this.db);
     this.llmCalls.markInterruptedLiveCallsFailed();

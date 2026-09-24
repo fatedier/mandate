@@ -344,3 +344,107 @@ test("WakeScheduler: does not retry one candidate after partial visible text", a
     else process.env.MANDATE_LOG_LEVEL = oldLevel;
   }
 });
+
+// The two tests above reach their failure through the idle timeout, which the
+// shared policy never retries anyway. These use an overload — retryable, so
+// only the wake loop's own "text already shown" rule keeps the same model from
+// streaming the reply a second time.
+function partialThenOverloaded() {
+  return createScriptedStreamLLM([
+    [
+      { type: "stream-start", warnings: [] },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "partial" },
+      { type: "controller-error", error: Object.assign(new Error("Overloaded"), { status: 529 }) }
+    ],
+    // Reached only if the same model were retried.
+    [
+      { type: "stream-start", warnings: [] },
+      { type: "text-start", id: "t2" },
+      { type: "text-delta", id: "t2", delta: "same model again" },
+      { type: "text-end", id: "t2" },
+      {
+        type: "finish",
+        finishReason: { unified: "stop", raw: "stop" },
+        usage: {
+          inputTokens: { total: 1, noCache: 1, cacheRead: undefined, cacheWrite: undefined },
+          outputTokens: { total: 1, text: 1, reasoning: undefined }
+        }
+      } as any
+    ]
+  ], { provider: "codex", modelId: "gpt-5.5" });
+}
+
+test("WakeScheduler: a retryable error after partial text falls back instead of retrying the same model", async () => {
+  const oldLevel = process.env.MANDATE_LOG_LEVEL;
+  process.env.MANDATE_LOG_LEVEL = "silent";
+  const env = freshAgentEnv("md-wake-timeout-");
+  try {
+    const { thread, trigger } = seedTrigger(env);
+    const sseEvents: Array<{ name: string; data: any }> = [];
+    const primary = partialThenOverloaded();
+    const fallback = createMockLLM([{ text: "fallback ok", finishReason: "stop" }], { provider: "openai-compatible", modelId: "gpt-5.5" });
+    const primaryRecorder = recorder(env, "codex", "gpt-5.5");
+    const fallbackRecorder = recorder(env, "openai-compatible", "gpt-5.5", "http://proxy");
+
+    const wakeId = await scheduler(env, {
+      llmModel: primary,
+      llmCallRecorder: primaryRecorder,
+      sse: { emit: (name, data) => sseEvents.push({ name, data }) },
+      llmForThread: () => ({
+        model: primary,
+        llmCallRecorder: primaryRecorder,
+        candidates: [
+          { model: primary, llmCallRecorder: primaryRecorder, meta: { provider: "codex", model: "gpt-5.5" } },
+          { model: fallback, llmCallRecorder: fallbackRecorder, meta: { provider: "openai-compatible", model: "gpt-5.5", baseURL: "http://proxy" } }
+        ]
+      })
+    }).wakeAndWait(thread.id, "user", trigger.id);
+
+    expect([primary.callsMade, fallback.callsMade]).toEqual([1, 1]);
+    expect(env.agentStore.getWakeById(wakeId)?.status).toBe("finished");
+    const reset = sseEvents.find((event) =>
+      event.name === SSE_EVENTS.agentMessageDelta
+      && event.data.wakeId === wakeId
+      && event.data.totalText === ""
+    );
+    expect(reset?.data.deltaText).toBe("");
+    const reply = env.agentStore.getActiveMessages(thread.id).at(-1)!;
+    expect(reply.content.type === "assistant" ? reply.content.text : "").toBe("fallback ok");
+  } finally {
+    env.cleanup();
+    if (oldLevel === undefined) delete process.env.MANDATE_LOG_LEVEL;
+    else process.env.MANDATE_LOG_LEVEL = oldLevel;
+  }
+});
+
+test("WakeScheduler: a retryable error after partial text with no fallback fails the wake without a retry", async () => {
+  const oldLevel = process.env.MANDATE_LOG_LEVEL;
+  process.env.MANDATE_LOG_LEVEL = "silent";
+  const env = freshAgentEnv("md-wake-timeout-");
+  try {
+    const { thread, trigger } = seedTrigger(env);
+    const primary = partialThenOverloaded();
+    const primaryRecorder = recorder(env, "codex", "gpt-5.5");
+
+    const wakeId = await scheduler(env, {
+      llmModel: primary,
+      llmCallRecorder: primaryRecorder,
+      llmForThread: () => ({
+        model: primary,
+        llmCallRecorder: primaryRecorder,
+        candidates: [
+          { model: primary, llmCallRecorder: primaryRecorder, meta: { provider: "codex", model: "gpt-5.5" } }
+        ]
+      })
+    }).wakeAndWait(thread.id, "user", trigger.id);
+
+    expect(primary.callsMade).toBe(1);
+    expect(env.agentStore.getWakeById(wakeId)?.status).toBe("error");
+    expect(env.store.listLlmCalls(50).map((call) => call.status)).toEqual(["failed"]);
+  } finally {
+    env.cleanup();
+    if (oldLevel === undefined) delete process.env.MANDATE_LOG_LEVEL;
+    else process.env.MANDATE_LOG_LEVEL = oldLevel;
+  }
+});

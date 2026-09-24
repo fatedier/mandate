@@ -136,3 +136,101 @@ test("initial readiness follows the first completed poll and only fires once", a
     if (timer) clearTimeout(timer);
   }
 });
+
+/** Swaps the four timer globals for recording wrappers until `restore()`. */
+function recordTimers() {
+  const real = {
+    setInterval: globalThis.setInterval,
+    setTimeout: globalThis.setTimeout,
+    clearInterval: globalThis.clearInterval,
+    clearTimeout: globalThis.clearTimeout
+  };
+  const intervals = new Set<unknown>();
+  const timeouts: unknown[] = [];
+  const cleared = new Set<unknown>();
+  globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
+    const handle = real.setInterval(...args);
+    intervals.add(handle);
+    return handle;
+  }) as typeof setInterval;
+  globalThis.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
+    const handle = real.setTimeout(...args);
+    timeouts.push(handle);
+    return handle;
+  }) as typeof setTimeout;
+  globalThis.clearInterval = ((handle: Parameters<typeof clearInterval>[0]) => {
+    cleared.add(handle);
+    real.clearInterval(handle);
+  }) as typeof clearInterval;
+  globalThis.clearTimeout = ((handle: Parameters<typeof clearTimeout>[0]) => {
+    cleared.add(handle);
+    real.clearTimeout(handle);
+  }) as typeof clearTimeout;
+  return {
+    real,
+    intervals,
+    timeouts,
+    cleared,
+    restore() {
+      Object.assign(globalThis, real);
+      for (const handle of intervals) real.clearInterval(handle as ReturnType<typeof setInterval>);
+      for (const handle of timeouts) real.clearTimeout(handle as ReturnType<typeof setTimeout>);
+    }
+  };
+}
+
+test("stop() clears the poll timer and both intervals", () => {
+  const timers = recordTimers();
+  try {
+    const starter = createBackgroundJobsStarter({
+      config: { pollIntervalMs: 60 * 60 * 1000 } as unknown as Config,
+      poller: { poll: async () => {} } as unknown as TmuxPoller,
+      db: {} as Database,
+      memoryDreamJob: { tick: async () => {} } as never
+    });
+    starter.start();
+    expect(timers.intervals.size).toBe(2);
+    expect(timers.timeouts).toHaveLength(1);
+    starter.stop();
+    expect([...timers.intervals].every((handle) => timers.cleared.has(handle))).toBe(true);
+    expect(timers.cleared.has(timers.timeouts[0])).toBe(true);
+  } finally {
+    timers.restore();
+  }
+});
+
+test("a scheduled poll still running when stop() is called does not schedule another", async () => {
+  // Uses the real 500 ms minimum interval (plus up to 12% jitter): the path
+  // under test is the scheduled poll's own finally, which only a fired poll
+  // timer reaches.
+  const timers = recordTimers();
+  try {
+    let finishPoll!: () => void;
+    const inFlight = new Promise<void>((resolve) => { finishPoll = resolve; });
+    let scheduledPollStarted!: () => void;
+    const started = new Promise<void>((resolve) => { scheduledPollStarted = resolve; });
+    let polls = 0;
+    const poller = {
+      poll: () => {
+        polls += 1;
+        if (polls === 1) return Promise.resolve(); // start()'s own first poll
+        scheduledPollStarted();
+        return inFlight;
+      }
+    } as unknown as TmuxPoller;
+    const starter = createBackgroundJobsStarter({
+      config: { pollIntervalMs: 500 } as unknown as Config,
+      poller
+    });
+    starter.start();
+    await started;
+    starter.stop();
+    const timeoutsAtStop = timers.timeouts.length;
+    finishPoll();
+    await inFlight;
+    await new Promise((resolve) => timers.real.setTimeout(resolve, 0));
+    expect(timers.timeouts.length).toBe(timeoutsAtStop);
+  } finally {
+    timers.restore();
+  }
+});

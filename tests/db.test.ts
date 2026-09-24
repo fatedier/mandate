@@ -5,6 +5,7 @@ import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import { MandateStore } from "../src/server/app/store.js";
 import { initializeDatabaseSchema } from "../src/server/platform/db/schema.js";
+import { getMandateModules } from "../src/server/modules/registry.js";
 import { freshStoresEnv, seedFeature, seedProject } from "./helpers/fixtures.js";
 
 const tempStore = () => freshStoresEnv("md-db-");
@@ -79,7 +80,7 @@ test("MandateStore marks interrupted live LLM calls failed on startup", () => {
   let restarted: MandateStore | null = null;
   try {
     const db = new Database(path.join(dir, "mandate.db"));
-    initializeDatabaseSchema(db);
+    initializeDatabaseSchema(db, getMandateModules());
     db.prepare(
       `
       insert into llm_calls (id, purpose, status, started_at, created_at, updated_at)

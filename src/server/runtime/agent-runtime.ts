@@ -53,6 +53,7 @@ import {
   wakeManagerForLimitReached
 } from "./agent-limit-reached-events.js";
 import { relayFeatureMessageReply } from "./feature-message-relay.js";
+import { logError } from "../platform/logger.js";
 
 interface AgentRuntimeDeps {
   config: Config;
@@ -594,8 +595,8 @@ export function buildAgentRuntime(deps: AgentRuntimeDeps): AgentRuntime {
       for (const cb of wakeFinishedSubscribers) {
         try {
           cb(event);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          logError(`agent wake ${event.wakeId} wake-finished subscriber`, err);
         }
       }
     },
@@ -669,6 +670,10 @@ export function buildAgentRuntime(deps: AgentRuntimeDeps): AgentRuntime {
     dispose() {
       managerWorkItemHeartbeat?.dispose();
       for (const unsubscribe of unsubscribeWorkItemHeartbeat) unsubscribe();
+      // Both clear in-memory timers only; pending watch and alarm rows stay in
+      // the database and are re-armed on the next start.
+      windowWatchManager.dispose();
+      alarmManager.dispose();
     },
     onWakeFinished(cb) {
       wakeFinishedSubscribers.add(cb);

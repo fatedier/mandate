@@ -220,9 +220,11 @@ export function buildLlmCallWhere(options: LlmCallFilters) {
   }
 
   // Truthiness, not presence, because that is what the summary groups on:
-  // `agent-compression-controller.ts` writes `fallbackAttempt: candidateIndex >
-  // 0`, so a retry of the first candidate records a literal `false` and is a
-  // primary call. A row with no marker, no metadata, or metadata that will not
+  // `llmAttemptMetadata` writes `fallbackAttempt: candidateIndex > 0`, so a
+  // retry of the first candidate records a literal `false` and is a primary
+  // call. (Rows written before 2026-09-19 by the wake and dream loops carry
+  // `true` on such a retry; those only happened with no fallback configured.)
+  // A row with no marker, no metadata, or metadata that will not
   // parse reads as primary too — coalesce, so the null the guard produces lands
   // on the "0" side rather than in neither answer.
   const fallback = normalizeFilterValue(options.fallback);

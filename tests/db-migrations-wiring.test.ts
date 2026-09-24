@@ -26,13 +26,14 @@ function fakeModules(): MandateModule[] {
   ];
 }
 
-test("collectModuleMigrations: flattens in registry order, then array order", () => {
+test("collectModuleMigrations: flattens in the order given, then array order", () => {
   const ids = collectModuleMigrations(fakeModules()).map((migration) => migration.id);
   expect(ids).toEqual(["alpha/one", "alpha/two", "gamma/one"]);
 });
 
 test("collectModuleMigrations: a module without migrations contributes nothing", () => {
-  const ids = collectModuleMigrations([{ id: "beta" }]).map((migration) => migration.id);
+  const beta: MandateModule = { id: "beta" };
+  const ids = collectModuleMigrations([beta]).map((migration) => migration.id);
   expect(ids).toEqual([]);
 });
 
@@ -40,7 +41,7 @@ test("collectModuleMigrations: the real registry has unique, module-prefixed ids
   // The id is a database primary key shared across modules, so a missing
   // prefix or a collision would let one module silently mark another's
   // migration applied.
-  const migrations = collectModuleMigrations();
+  const migrations = collectModuleMigrations(getMandateModules());
   const ids = migrations.map((migration) => migration.id);
   expect(ids.length).toBe(new Set(ids).size);
   // Tied to the declaring module, not merely to the shape: the prefix exists so
@@ -59,10 +60,10 @@ test("the collected migrations apply cleanly to a fresh database", () => {
   // Converge the schema first, exactly as the store does. A migration is a
   // transform over tables the convergent DDL creates, so running one against a
   // bare database would throw for a reason that is not a defect.
-  initializeDatabaseSchema(db);
-  expect(() => runPendingMigrations(db, collectModuleMigrations())).not.toThrow();
+  initializeDatabaseSchema(db, getMandateModules());
+  expect(() => runPendingMigrations(db, collectModuleMigrations(getMandateModules()))).not.toThrow();
   const applied = db.prepare("select count(*) c from schema_migrations").get() as { c: number };
-  expect(applied.c).toBe(collectModuleMigrations().length);
+  expect(applied.c).toBe(collectModuleMigrations(getMandateModules()).length);
 });
 
 test("opening a MandateStore runs the migrations", () => {
@@ -78,7 +79,7 @@ test("opening a MandateStore runs the migrations", () => {
     const applied = store.db
       .prepare("select count(*) c from schema_migrations")
       .get() as { c: number };
-    expect(applied.c).toBe(collectModuleMigrations().length);
+    expect(applied.c).toBe(collectModuleMigrations(getMandateModules()).length);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
