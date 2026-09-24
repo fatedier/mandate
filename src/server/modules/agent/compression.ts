@@ -341,10 +341,19 @@ function isSummarizableForCompression(message: AgentMessage): boolean {
   return message.source !== "runtime-context" && message.source !== "side-boundary";
 }
 
+/** The model finished normally but wrote nothing. A glitch of that call, not of
+ *  the request, so compression gives it one more try on the same model. */
+export class EmptyCompressionSummaryError extends Error {
+  constructor() {
+    super("compression produced empty summary");
+    this.name = "EmptyCompressionSummaryError";
+  }
+}
+
 export function normalizeCompressionSummaryText(summaryText: string): string {
   const text = summaryText.trim();
   if (!text) {
-    throw new Error("compression produced empty summary");
+    throw new EmptyCompressionSummaryError();
   }
   return text;
 }

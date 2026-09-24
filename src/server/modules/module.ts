@@ -1,6 +1,5 @@
 import type { Hono } from "hono";
 import type { UpgradeWebSocket } from "hono/ws";
-import type { Database } from "bun:sqlite";
 import type { Config } from "../config.js";
 import type { MandateStore } from "../app/store.js";
 import type { AgentScope, AgentStore } from "./agent/agent-store.js";
@@ -30,6 +29,7 @@ import type { UiContextRegistry } from "./ui-context/ui-context-registry.js";
 import type { WorkItemStore } from "./agent/work-item-store.js";
 import type { ModelInputType } from "../../shared/agent-message-types.js";
 import type { Migration } from "../platform/db/migrations.js";
+import type { SchemaInitializer } from "../platform/db/schema.js";
 
 interface ModuleRouteContext {
   deps: AppDeps;
@@ -86,8 +86,6 @@ export interface AgentScopePackContext {
 export interface WorkerToolPackContext {
   watchManager: WindowWatchManager;
 }
-
-type SchemaInitializer = (db: Database) => void;
 
 export interface MandateModule {
   id: string;

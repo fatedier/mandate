@@ -31,14 +31,7 @@ import {
   reasoningForAiSdk
 } from "../llm/reasoning.js";
 import { AGENT_WAKE_STEP_LLM_TIMEOUT, LLM_STREAM_IDLE_TIMEOUT_MS } from "../llm/timeouts.js";
-import {
-  errorMessage,
-  isNonFallbackLlmError,
-  isRetryableLlmError,
-  isTimeoutLlmError,
-  maxAttemptsForLlmCandidateCount,
-  retryDelayMs
-} from "../llm/retry-policy.js";
+import { llmAttemptMetadata, runLlmCandidates } from "../llm/run-candidates.js";
 import { latestUiLocationFromMessages, renderUiLocationPrompt } from "../ui-context/ui-context-registry.js";
 import { positiveNumberOrNull, prepareAiSdkMessages } from "./wake-message-adapter.js";
 import { toUserFacingError } from "../../platform/errors.js";
@@ -456,7 +449,7 @@ export class WakeScheduler {
             reason,
             status: finalStatus,
             triggerMessageId
-          })).catch(() => { /* ignore */ });
+          })).catch((err) => logError(`agent wake ${wakeId} wake-finished hook`, err));
         }
       }
       let postWakeHookPromise: Promise<void> | null = null;
@@ -474,15 +467,20 @@ export class WakeScheduler {
             lastPromptMaxSeq,
             maxInputTokens
           }));
-        } catch {
-          // Never let a hook failure poison the wake result.
+        } catch (err) {
+          // Never let a hook failure poison the wake result — but say so.
+          logError(`agent wake ${wakeId} post-wake hook`, err);
         }
       }
       release();
       if (this.deps.afterWakeReleasedHook) {
-        Promise.resolve(this.deps.afterWakeReleasedHook(threadId)).catch(() => { /* ignore */ });
+        // This hook starts whatever was queued behind the wake (a user
+        // message, mailbox, task, window watch). If it throws, that wake never
+        // starts; nothing else will notice, so the log is the only trace.
+        Promise.resolve(this.deps.afterWakeReleasedHook(threadId)).catch((err) =>
+          logError(`agent wake ${wakeId} queued follow-up wake`, err));
       }
-      postWakeHookPromise?.catch(() => { /* ignore */ });
+      postWakeHookPromise?.catch((err) => logError(`agent wake ${wakeId} post-wake hook`, err));
     }
   }
 
@@ -787,19 +785,34 @@ export class WakeScheduler {
     streamArgs: WakeStreamArgs;
     signal: AbortSignal;
   }): Promise<WakeLlmResult> {
-    let lastError: unknown = null;
-    const maxAttemptsPerCandidate = maxAttemptsForLlmCandidateCount(input.candidates.length);
-    for (let candidateIndex = 0; candidateIndex < input.candidates.length; candidateIndex++) {
-      const candidate = input.candidates[candidateIndex]!;
-      const recorder = candidate.llmCallRecorder;
-      for (let attempt = 1; attempt <= maxAttemptsPerCandidate; attempt++) {
+    // Per attempt, read by onFailure: attempts run one at a time, so the flag
+    // always describes the attempt that just failed.
+    let emittedText = false;
+    return runLlmCandidates({
+      candidates: input.candidates,
+      signal: input.signal,
+      wait: (ms) => sleep(ms, input.signal),
+      onFailure: (failure) => {
+        if (!emittedText) return;
+        // The user has already seen part of this reply. Sending the same
+        // request to the same model would stream it again; only a different
+        // model is worth it, and its bubble has to start from empty.
+        if (!failure.canFallback) return "throw";
+        this.deps.sse.emit(SSE_EVENTS.agentMessageDelta, {
+          threadId: input.threadId,
+          wakeId: input.wakeId,
+          deltaText: "",
+          totalText: ""
+        });
+        return "fallback";
+      },
+      attempt: async (candidate, at) => {
+        const { candidateIndex, attempt } = at;
+        const recorder = candidate.llmCallRecorder;
         const startedAt = Date.now();
         const callMetadata = {
           ...input.metadata,
-          ...(candidateIndex === 0 && attempt === 1 ? {} : {
-            fallbackAttempt: true,
-            candidateIndex,
-            attempt,
+          ...llmAttemptMetadata(at, {
             provider: candidate.meta?.provider,
             model: candidate.meta?.model,
             reasoningEffort: candidate.meta?.reasoningEffort
@@ -814,7 +827,7 @@ export class WakeScheduler {
               requestPayload: input.requestPayload,
               metadata: callMetadata
             }) ?? null;
-        let emittedText = false;
+        emittedText = false;
         const idleTimeoutMs = this.streamIdleTimeoutMs();
         const streamDiagnostics = createLlmStreamDiagnostics({
           startedAt,
@@ -887,28 +900,6 @@ export class WakeScheduler {
             latencyMs: Date.now() - startedAt
           });
           if (input.signal.aborted) throw new WakeCanceledError();
-          const canFallback = candidateIndex < input.candidates.length - 1
-            && !isNonFallbackLlmError(err);
-          if (emittedText) {
-            if (!canFallback) throw err;
-            this.deps.sse.emit(SSE_EVENTS.agentMessageDelta, {
-              threadId: input.threadId,
-              wakeId: input.wakeId,
-              deltaText: "",
-              totalText: ""
-            });
-            lastError = err;
-            break;
-          }
-          lastError = err;
-
-          const retryable = isRetryableLlmError(err) && !isTimeoutLlmError(err);
-          if (attempt < maxAttemptsPerCandidate && retryable) {
-            await sleep(retryDelayMs(attempt), input.signal);
-            continue;
-          }
-
-          if (canFallback) break;
           throw err;
         } finally {
           // Every exit from an attempt passes here — success, retry, fallback,
@@ -919,10 +910,7 @@ export class WakeScheduler {
           streamIdleGuard.cleanup();
         }
       }
-    }
-    throw lastError instanceof Error
-      ? lastError
-      : new Error(errorMessage(lastError) || "LLM call failed");
+    });
   }
 
   private llmTimeout(): TimeoutConfiguration<ToolSet> {

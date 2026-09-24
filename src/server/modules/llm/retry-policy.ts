@@ -1,8 +1,48 @@
 import { formatErrorMessage } from "../../platform/errors.js";
 import { embeddedProviderError } from "../../../shared/error-reason.js";
 
-export function maxAttemptsForLlmCandidateCount(candidateCount: number): number {
-  return candidateCount > 1 ? 1 : 2;
+/**
+ * Attempts per candidate model, the first included: a retryable failure gets
+ * one more try on the same model before the next candidate, whether or not a
+ * fallback exists.
+ *
+ * This used to be 1 whenever a fallback was configured, which sent every
+ * transient blip to the fallback. Measured on production traffic
+ * (2026-05-23 → 09-15): after a first-model failure, the same model's next
+ * call within 5 s succeeded for 92% of rate limits and 82% of overloads, and
+ * those failures cost about 1 s and 5 s at the median — while the configured
+ * fallback (the same model through another provider) ran at 21 s against 10 s
+ * with a 73% cache hit rate against 96%. Timeouts stay excluded below: the
+ * failed attempt has already waited 90 s at the median.
+ */
+export const LLM_ATTEMPTS_PER_CANDIDATE = 2;
+
+export interface LlmAttempt {
+  /** Index into the candidate list; 0 is the configured primary model. */
+  candidateIndex: number;
+  /** 1-based, counted per candidate. */
+  attempt: number;
+  /** Another candidate exists after this one. */
+  hasNext: boolean;
+}
+
+export type LlmFailureDecision = "retry" | "fallback" | "throw";
+
+/** What to do after one attempt failed: retry the same model, move to the next
+ *  candidate, or give up. `canFallback` is whether this error may move to the
+ *  next candidate at all — false for a request the next model would reject too. */
+export function decideLlmFailure(
+  error: unknown,
+  at: LlmAttempt
+): { decision: LlmFailureDecision; canFallback: boolean } {
+  const requestRejected = isNonFallbackLlmError(error);
+  const canFallback = at.hasNext && !requestRejected;
+  // A rejected request is checked here too, not only for fallback: a gateway
+  // that stamps every failure 500 makes "context length exceeded" look
+  // retryable by status, and the same bytes would be rejected again.
+  const retryable = isRetryableLlmError(error) && !isTimeoutLlmError(error) && !requestRejected;
+  if (retryable && at.attempt < LLM_ATTEMPTS_PER_CANDIDATE) return { decision: "retry", canFallback };
+  return { decision: canFallback ? "fallback" : "throw", canFallback };
 }
 
 /**

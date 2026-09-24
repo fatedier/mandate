@@ -20,7 +20,9 @@ export function createBackgroundJobsStarter(input: {
 }) {
   const { config, poller, memoryDreamJob, db } = input;
   let started = false;
+  let stopped = false;
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
+  const intervals: ReturnType<typeof setInterval>[] = [];
 
   const pollIntervalMs = () => Math.max(MIN_POLL_INTERVAL_MS, Math.floor(Number(config.pollIntervalMs) || 0));
   const clearPollTimer = () => {
@@ -30,6 +32,8 @@ export function createBackgroundJobsStarter(input: {
   };
   const schedulePoll = () => {
     clearPollTimer();
+    // A poll still in flight when stop() ran lands here through its finally.
+    if (stopped) return;
     pollTimer = setTimeout(() => {
       pollTimer = null;
       void poller.poll().finally(schedulePoll);
@@ -38,7 +42,7 @@ export function createBackgroundJobsStarter(input: {
 
   return {
     start() {
-      if (started) return;
+      if (started || stopped) return;
       started = true;
 
       void poller.poll().finally(input.onInitialPollComplete);
@@ -52,7 +56,7 @@ export function createBackgroundJobsStarter(input: {
             logError("memory-dream-job", e, "memory dream job failed");
           });
         };
-        setInterval(tickDream, MEMORY_DREAM_CHECK_INTERVAL_MS);
+        intervals.push(setInterval(tickDream, MEMORY_DREAM_CHECK_INTERVAL_MS));
         tickDream();
       }
 
@@ -67,7 +71,7 @@ export function createBackgroundJobsStarter(input: {
         // every restart, forever. (Not the 165 ms an earlier note gave: that
         // extrapolated a working pass from a per-row delete cost.) The backlog is
         // dead data -- a first pass an hour from now is soon enough.
-        setInterval(() => {
+        intervals.push(setInterval(() => {
           try {
             const result = runRetentionPass(db, new Date(), config.retention);
             if (
@@ -86,7 +90,7 @@ export function createBackgroundJobsStarter(input: {
           } catch (e) {
             logError("retention-job", e, "retention pass failed");
           }
-        }, RETENTION_INTERVAL_MS);
+        }, RETENTION_INTERVAL_MS));
         // Until a pass actually frees something there is no other sign this job
         // exists: the first pass is an interval away, a pass that finds nothing stays
         // quiet, and the file never shrinks either way. Without this line "scheduled
@@ -98,8 +102,16 @@ export function createBackgroundJobsStarter(input: {
       }
     },
 
+    /** Clears every timer start() registered. Final: a stopped starter does
+     *  not start again. */
+    stop() {
+      stopped = true;
+      clearPollTimer();
+      for (const handle of intervals.splice(0)) clearInterval(handle);
+    },
+
     refreshPollInterval() {
-      if (!started) return;
+      if (!started || stopped) return;
       schedulePoll();
       void poller.poll();
     }

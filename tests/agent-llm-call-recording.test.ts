@@ -583,7 +583,7 @@ test("recorder: LLM error path records status=failed with error_json", async () 
   }
 });
 
-test("recorder: wake fallback switches provider after one retryable failure", async () => {
+test("recorder: wake falls back without retrying the primary after a timeout", async () => {
   const originalError = console.error;
   const oldLevel = process.env.MANDATE_LOG_LEVEL;
   process.env.MANDATE_LOG_LEVEL = "silent";
@@ -597,7 +597,7 @@ test("recorder: wake fallback switches provider after one retryable failure", as
     });
     const primary = createMockLLM([
       { error: "The operation timed out." },
-      { error: "should not retry primary when fallback exists" }
+      { error: "a timeout must not be retried on the same model" }
     ], { provider: "codex", modelId: "gpt-5.5" });
     const fallback = createMockLLM([
       { text: "fallback ok", finishReason: "stop" }
@@ -651,6 +651,75 @@ test("recorder: wake fallback switches provider after one retryable failure", as
     expect((fallbackCall.metadata as any)?.providerName).toBe("backup");
     expect((fallbackCall.metadata as any)?.candidateIndex).toBe(1);
     expect((fallbackCall.metadata as any)?.attempt).toBe(1);
+  } finally {
+    console.error = originalError;
+    cleanup();
+    if (oldLevel === undefined) delete process.env.MANDATE_LOG_LEVEL;
+    else process.env.MANDATE_LOG_LEVEL = oldLevel;
+  }
+});
+
+test("recorder: wake retries the primary once for an overload even when a fallback exists", async () => {
+  const originalError = console.error;
+  const oldLevel = process.env.MANDATE_LOG_LEVEL;
+  process.env.MANDATE_LOG_LEVEL = "silent";
+  console.error = () => {};
+  const { store, agentStore, cleanup } = fresh();
+  try {
+    const thread = agentStore.getOrCreateThread("worker", "feat-A");
+    const trigger = agentStore.appendMessage({
+      threadId: thread.id, role: "user", source: "user",
+      content: { type: "text", text: "hi" }
+    });
+    const primary = createMockLLM([
+      { error: Object.assign(new Error("Overloaded"), { status: 529 }) },
+      { text: "primary retry ok", finishReason: "stop" }
+    ], { provider: "codex", modelId: "gpt-5.5" });
+    const fallback = createMockLLM([
+      { text: "fallback must not be reached", finishReason: "stop" }
+    ], { provider: "openai-compatible", modelId: "gpt-5.5" });
+    const primaryRecorder = new AgentLlmCallRecorder({
+      store, logRequests: "metadata",
+      providerName: "primary", provider: "codex", model: "gpt-5.5", baseURL: "", apiMode: "streamText"
+    });
+    const fallbackRecorder = new AgentLlmCallRecorder({
+      store, logRequests: "metadata",
+      providerName: "backup", provider: "openai-compatible", model: "gpt-5.5", baseURL: "http://proxy", apiMode: "streamText"
+    });
+    const { wakeAndWait } = createTestWakeScheduler({
+      agentStore, lock: new WakeLock(),
+      maxStepsPerWake: 3,
+      buildSystemPrompt: STUB_PROMPT,
+      toolDispatcherForThread: () => STUB_DISPATCHER as any,
+      llmModel: primary,
+      llmForThread: () => ({
+        model: primary,
+        llmCallRecorder: primaryRecorder,
+        candidates: [
+          { model: primary, llmCallRecorder: primaryRecorder, meta: { provider: "codex", model: "gpt-5.5" } },
+          {
+            model: fallback,
+            llmCallRecorder: fallbackRecorder,
+            meta: { provider: "openai-compatible", model: "gpt-5.5", baseURL: "http://proxy" }
+          }
+        ]
+      }),
+      sse: { emit: () => {} },
+      buildToolScope: STUB_SCOPE,
+      llmCallRecorder: primaryRecorder
+    });
+    await wakeAndWait(thread.id, "user", trigger.id);
+
+    expect([primary.callsMade, fallback.callsMade]).toEqual([2, 0]);
+    const calls = store.listLlmCalls(50).slice().reverse();
+    expect(calls.map((call) => [call.provider, call.status])).toEqual([
+      ["codex", "failed"],
+      ["codex", "succeeded"]
+    ]);
+    // A retry of the primary is still a primary call on the Activity page.
+    expect(calls[1]!.metadata as any).toMatchObject({ fallbackAttempt: false, candidateIndex: 0, attempt: 2 });
+    const reply = agentStore.getActiveMessages(thread.id).at(-1)!;
+    expect(reply.content.type === "assistant" ? reply.content.text : "").toBe("primary retry ok");
   } finally {
     console.error = originalError;
     cleanup();

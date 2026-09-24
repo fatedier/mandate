@@ -7,6 +7,7 @@ import type { BeforeModelCallInfo } from "../modules/agent/wake-loop.js";
 import type { AgentSseEmitter } from "../modules/sse/sse-events.js";
 import type { AgentLlmCallRecorder } from "../modules/activity/llm-call-recorder.js";
 import {
+  EmptyCompressionSummaryError,
   estimateMessagesTokens,
   getCompressionGateDecision,
   normalizeCompressionSummaryText,
@@ -22,8 +23,8 @@ import { extractSummaryMemories } from "../modules/memory/extraction.js";
 import { newId } from "../platform/ids.js";
 import { renderPromptFile } from "../platform/prompts/prompt-template.js";
 import { runAgentCompressionLlm } from "./agent-compression-llm.js";
+import { llmAttemptMetadata, runLlmCandidates } from "../modules/llm/run-candidates.js";
 import { buildCompressionMemorySource } from "./agent-memory-hooks.js";
-import { formatErrorMessage } from "../platform/errors.js";
 import compressionPromptPath from "../modules/agent/prompts/agent-compression-system.md" with { type: "file" };
 
 interface MemoryExtractionHandle {
@@ -128,11 +129,13 @@ export function createAgentCompressionController(
     const candidates = normalizeCompressionCandidates(compression);
     const requestPayload = { system: systemContent, messages: llmMessages };
     const baseMetadata = { messageCount: messages.length, ...compressionMetadata };
-    let lastError: unknown = null;
 
-    for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
-      const candidate = candidates[candidateIndex]!;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+    return runLlmCandidates({
+      candidates,
+      // The shared policy reads an empty summary as a non-retryable failure;
+      // the runner still caps this at one retry per model.
+      onFailure: (failure) => (failure.error instanceof EmptyCompressionSummaryError ? "retry" : undefined),
+      attempt: async (candidate, at) => {
         const startedAt = Date.now();
         const callId = candidate.recorder.startCall({
           purpose: "agent_compression",
@@ -141,9 +144,7 @@ export function createAgentCompressionController(
           requestPayload,
           metadata: {
             ...baseMetadata,
-            ...(candidateIndex > 0 || attempt > 1
-              ? { fallbackAttempt: candidateIndex > 0, candidateIndex, attempt, provider: candidate.provider }
-              : {})
+            ...llmAttemptMetadata(at, { provider: candidate.provider })
           }
         });
         try {
@@ -168,19 +169,10 @@ export function createAgentCompressionController(
             error: err,
             latencyMs: Date.now() - startedAt
           });
-          lastError = err;
-          if (attempt < 3 && isRetryableCompressionError(err)) {
-            await sleep(retryDelayMs(attempt));
-            continue;
-          }
-          if (candidateIndex < candidates.length - 1 && !isNonFallbackCompressionError(err)) break;
           throw err;
         }
       }
-    }
-    throw lastError instanceof Error
-      ? lastError
-      : new Error(formatErrorMessage(lastError, "compression failed"));
+    });
   };
 
   const currentConfig = () => getConfig?.() ?? config;
@@ -417,61 +409,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function positiveNumberOrNull(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function isRetryableCompressionError(error: unknown): boolean {
-  const message = formatErrorMessage(error, "").toLowerCase();
-  const status = errorStatus(error);
-  if (status && [408, 409, 425, 429, 500, 502, 503, 504, 529].includes(status)) return true;
-  return [
-    "compression produced empty summary",
-    "compression llm finished with error",
-    "timeout",
-    "timed out",
-    "econnreset",
-    "econnrefused",
-    "socket hang up",
-    "network",
-    "overloaded",
-    "rate limit",
-    "temporarily unavailable",
-    "internal server error",
-    "bad gateway",
-    "service unavailable",
-    "gateway timeout"
-  ].some((needle) => message.includes(needle));
-}
-
-function isNonFallbackCompressionError(error: unknown): boolean {
-  const message = formatErrorMessage(error, "").toLowerCase();
-  return [
-    "context length",
-    "context window",
-    "maximum context",
-    "too many tokens",
-    "unsupported image",
-    "invalid request",
-    "bad request"
-  ].some((needle) => message.includes(needle));
-}
-
-function errorStatus(error: unknown): number | null {
-  if (!error || typeof error !== "object") return null;
-  const record = error as Record<string, unknown>;
-  const cause = record.cause;
-  const candidates = [record.status, record.statusCode, record.code];
-  for (const value of candidates) {
-    const n = Number(value);
-    if (Number.isInteger(n)) return n;
-  }
-  return errorStatus(cause);
-}
-
-function retryDelayMs(attempt: number): number {
-  const base = Math.min(250 * 2 ** Math.max(0, attempt - 1), 2000);
-  return base + Math.floor(Math.random() * Math.min(base, 250));
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

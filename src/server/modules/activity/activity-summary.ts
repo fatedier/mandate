@@ -107,10 +107,10 @@ interface ScanRow extends GroupKeyRow {
  *
  * `fallback` reads truthiness, not presence. `candidateIndex` and `attempt` are
  * written to metadata only when a call is not the first candidate's first
- * attempt, so the key is absent on the happy path — but one writer records
- * `fallbackAttempt: candidateIndex > 0`, which is a literal `false` on a retry
- * of the *same* candidate. Presence would file that under "fallback"; truth
- * files it where it belongs.
+ * attempt, so the key is absent on the happy path — and `llmAttemptMetadata`
+ * records `fallbackAttempt: candidateIndex > 0`, which is a literal `false` on
+ * a retry of the *same* candidate. Presence would file that under "fallback";
+ * truth files it where it belongs.
  */
 function groupKeyOf(row: GroupKeyRow, group: ActivityGroupKey): string {
   switch (group) {
