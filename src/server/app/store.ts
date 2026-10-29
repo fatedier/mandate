@@ -1,0 +1,65 @@
+import path from "node:path";
+import { Database } from "bun:sqlite";
+import {
+  LlmCallStore,
+  type FinishLlmCallInput,
+  type LlmCallFilters,
+  type StartLlmCallInput
+} from "../modules/activity/llm-call-store.js";
+import { FeatureWindowStore } from "../modules/features/feature-window-store.js";
+import { getMandateModules } from "../modules/registry.js";
+import { initializeDatabaseSchema } from "../platform/db/schema.js";
+
+export class MandateStore {
+  db: Database;
+  private readonly featureWindows: FeatureWindowStore;
+  private readonly llmCalls: LlmCallStore;
+
+  constructor(rootDir: string) {
+    this.db = new Database(path.join(rootDir, "mandate.db"));
+    // busy_timeout first, and not for tidiness: switching journal mode takes a
+    // brief exclusive lock, so with the timeout still at its default 0 a second
+    // connection opening the same fresh database fails outright instead of
+    // waiting. Measured on a held lock: 1ms to "database is locked" in this
+    // order reversed, against a full wait once the timeout is in force.
+    this.db.exec("pragma busy_timeout = 5000");
+    this.db.exec("pragma journal_mode = wal");
+    const modules = getMandateModules();
+    initializeDatabaseSchema(this.db, modules);
+    this.featureWindows = new FeatureWindowStore(this.db);
+    this.llmCalls = new LlmCallStore(this.db);
+    this.llmCalls.markInterruptedLiveCallsFailed();
+  }
+
+  listFeatureWindowKeys(): Set<string> {
+    return this.featureWindows.listActiveWindowKeys();
+  }
+
+  startLlmCall(input: StartLlmCallInput) {
+    return this.llmCalls.startLlmCall(input);
+  }
+
+  finishLlmCall(id: string, input: FinishLlmCallInput) {
+    return this.llmCalls.finishLlmCall(id, input);
+  }
+
+  mergeLlmCallMetadata(id: string, patch: unknown) {
+    return this.llmCalls.mergeLlmCallMetadata(id, patch);
+  }
+
+  listLlmCalls(limit = 50, options: LlmCallFilters = {}) {
+    return this.llmCalls.listLlmCalls(limit, options);
+  }
+
+  listLlmCallSummaries(limit = 20, options: LlmCallFilters = {}) {
+    return this.llmCalls.listLlmCallSummaries(limit, options);
+  }
+
+  matchingLlmCallIds(options: LlmCallFilters = {}) {
+    return this.llmCalls.matchingLlmCallIds(options);
+  }
+
+  getLlmCall(id: string) {
+    return this.llmCalls.getLlmCall(id);
+  }
+}

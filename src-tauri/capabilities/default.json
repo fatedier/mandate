@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the main Mandate window.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:webview:allow-set-webview-zoom",
+    "core:window:allow-set-badge-count",
+    "allow-restart-backend",
+    "allow-backend-log",
+    "opener:allow-open-url",
+    "opener:allow-default-urls"
+  ]
+}

@@ -1,0 +1,752 @@
+@import "tailwindcss";
+/* Enter and exit motion for overlays (animate-in/out, fade, zoom, slide) and
+   the collapsible keyframes: the shadcn components' classes are its names. */
+@import "tw-animate-css";
+/* Canvas runtimes are opaque assets, not sources for the main UI's classes. */
+@source not "../vendor";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/* ============================================================
+   Light theme (neutral graphite)
+   ============================================================ */
+:root {
+  /* Native controls (checkboxes, scrollbars, a select's menu) are drawn for
+     this scheme; with none they stayed light on the dark theme. */
+  color-scheme: light;
+  /* shadcn standard tokens — neutral grey, no warm cast (the warm values were
+     judged muddy in dark mode; the two themes stay one family). The surface
+     ladder is three steps (panel = sidebar and list containers, background =
+     pane content, card = raised: composer and popovers). Depth is carried by
+     surface value and hairlines, never by cast shadows on cards. */
+  --background: #ffffff;
+  --foreground: #1a1a1c;
+  --card: #ffffff;
+  --card-foreground: #1a1a1c;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1c;
+  --primary: #5058e8;
+  --primary-foreground: #ffffff;
+  --secondary: #ededf0;
+  --secondary-foreground: #1a1a1c;
+  --muted: #ededf0;
+  /* The light text ladder sits at the dark theme's contrast, not a lighter
+     echo of it: muted 6.3:1, chrome 4.9:1, faint 3.8:1 on white (they were
+     5.3 / 3.7 / 2.8 — meta and column headers fell under AA while the dark
+     theme's did not). */
+  --muted-foreground: #5f5f68;
+  --accent: #ededf0;
+  --accent-foreground: #1a1a1c;
+  --destructive: #d12222;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.12);
+  /* Every scrollbar's thumb: faint, well below the border colour. */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.07);
+  /* A bar the reader drags (.scrollbar-drag): under the pointer, and held. */
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+  --scrollbar-thumb-active: rgba(0, 0, 0, 0.3);
+  --input: rgba(0, 0, 0, 0.12);
+  --ring: #5058e8;
+  --radius: 0.75rem;
+
+  /* Semantic tokens */
+  --panel: #f5f5f7;
+  --faint: #83838c;
+  --chrome: #70707a;
+  --sel: rgba(0, 0, 0, 0.06); /* 5% left the latency track and hover fills near-invisible on the panel */
+  --user-bubble: #f0f0f3;
+  --pill-mix: 12%;
+  /* Code blocks in chat sit ON the page as a lifted card (panel colour plus a
+     hairline and a language strip), not sunk below it — a sunk block was only
+     a few steps from the page and read as the same surface. Theme-aware,
+     unlike terminal-bg. */
+  --code-bg: #f5f5f7;
+  --primary-soft: #3d43c4;
+  --primary-grad-from: #5058e8;
+  /* Status colours at AA on white: red 5.3, amber 4.7, green 5.4 (were 4.8 /
+     3.7 / 4.4). */
+  /* A question waiting for the user's answer: yellow, apart from a failure's
+     red. The mark (a dot, a frame, a tint) and, darker, its words and icons,
+     which must read on white (4.9): the context meter's yellow pair. */
+  --status-input: #ca8a04;
+  --status-input-fg: #a16207;
+  /* A decision or a result to look at, and the accent: one family. --amber
+     remains for genuine cautions. */
+  --status-review: #5058e8;
+  /* The context meter nearing compaction: a yellow fill, and a darker
+     yellow for its figure, which must read on white (4.9). --amber here is
+     orange, not yellow. */
+  --meter-warn: #eab308;
+  --meter-warn-fg: #a16207;
+  --phase-design: #7c3aed;
+  --phase-working: #2b6fd3;
+  --phase-verifying: #0891b2;
+  --phase-done: #1a7a48;
+  --live: #1a7a48;
+
+  /* Legacy aliases — names preserved for existing call sites; no new use. */
+  --surface-2: #f5f5f7;
+  --terminal-bg: #0a0c10; /* always dark; hosts terminals + canvases */
+  --border-soft: rgba(0, 0, 0, 0.07);
+  --soft: #5f5f68;
+  --blue: #2b6fd3;
+  --green: #1a7a48;
+  --amber: #b45309;
+  --red: #d12222;
+  --violet: #7c3aed;
+  --neutral: #5f5f68;
+
+  /* Elevation. Cards and list containers are a surface plus a hairline and
+     nothing else; the composer and popovers are the only things that float. */
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
+  --shadow-composer:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 24px -12px rgba(0, 0, 0, 0.12);
+  --shadow-popover:
+    0 2px 4px -2px rgba(24, 28, 40, 0.10),
+    0 12px 32px -8px rgba(24, 28, 40, 0.20);
+  --shadow-primary-btn: 0 0 #0000;
+
+  --diff-add-bg: rgba(31, 138, 82, 0.1);
+  --diff-del-bg: rgba(220, 38, 38, 0.1);
+  --diff-add-fg: #1f8a52;
+  --diff-del-fg: #b91c1c;
+
+  --surface-gradient-from: #ffffff;
+  --surface-gradient-to: #f5f5f7;
+}
+
+/* ============================================================
+   Dark theme — the primary personality (neutral graphite)
+   ============================================================ */
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* Surface ladder: background #141416 → panel #1e1e21 → card #222225 →
+     popover #26262a. Neutral grey, no warm cast: with the hue gone the value
+     steps alone carry the layering, and hairlines sit at 8% / 14%. Text is a
+     four-step ladder (foreground, muted, chrome, faint) kept wide enough to
+     read as four. */
+  --background: #141416;
+  --foreground: #ededf0;
+  --card: #222225;
+  --card-foreground: #ededf0;
+  --popover: #26262a;
+  --popover-foreground: #ededf0;
+  --primary: #7b84f6;
+  --primary-foreground: #0d0e14;
+  --secondary: #232326;
+  --secondary-foreground: #ededf0;
+  --muted: #232326;
+  --muted-foreground: #a1a1aa;
+  --accent: #232326;
+  --accent-foreground: #ededf0;
+  --destructive: #f0716f;
+  --destructive-foreground: #0d0e14;
+  --border: rgba(255, 255, 255, 0.14);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.3);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #7b84f6;
+
+  --panel: #1e1e21;
+  --faint: #6c6c75;
+  --chrome: #808089;
+  --sel: rgba(255, 255, 255, 0.07);
+  --user-bubble: #242427;
+  --pill-mix: 14%;
+  --code-bg: #1c1c20; /* lifted above the page (see the light block) */
+  --primary-soft: #c7cbfa;
+  --primary-grad-from: #7b84f6;
+  --status-input: #d4a03c;
+  --status-input-fg: #d4a03c;
+  --status-review: #7b84f6;
+  --meter-warn: #d4a03c;
+  --meter-warn-fg: #d4a03c;
+  --phase-design: #a78bfa;
+  --phase-working: #5f9ef3;
+  --phase-verifying: #22d3ee;
+  --phase-done: #3fb27a;
+  --live: #3fb27a;
+
+  --surface-2: #1e1e21;
+  --terminal-bg: #0a0c10;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --soft: #a1a1aa;
+  --blue: #5f9ef3;
+  --green: #3fb27a;
+  --amber: #d4a03c;
+  --red: #f0716f;
+  --violet: #a78bfa;
+  --neutral: #a1a1aa;
+
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
+  --shadow-composer:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 8px 24px -12px rgba(0, 0, 0, 0.4);
+  --shadow-popover:
+    0 4px 8px -4px rgba(0, 0, 0, 0.6),
+    0 20px 56px -12px rgba(0, 0, 0, 0.65);
+  --shadow-primary-btn: 0 0 #0000;
+
+  --diff-add-bg: rgba(63, 178, 122, 0.12);
+  --diff-del-bg: rgba(240, 113, 111, 0.12);
+  --diff-add-fg: #3fb27a;
+  --diff-del-fg: #f0716f;
+
+  --surface-gradient-from: #1e1e21;
+  --surface-gradient-to: #141416;
+}
+
+/* Bridge raw vars into Tailwind v4 utilities (bg-*, text-*, border-*,
+   shadow-*, animate-*). Names here define the utility vocabulary the
+   components build on. */
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    system-ui, "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* ---- Type ramp ------------------------------------------------------
+     12px is the floor. Line-height travels with the size. Tracking is 0 at
+     text sizes — the system font is already tuned there — and goes negative
+     from 18px up, where display sizes need tightening. A `leading-*`
+     utility still wins at a call site. */
+  --text-2xs: 0.75rem;             /* 12 — metadata, chips, badges */
+  --text-2xs--line-height: 1.35;
+  --text-2xs--letter-spacing: 0em;
+  --text-xs: 0.8125rem;            /* 13 — dense secondary text */
+  --text-xs--line-height: 1.4;
+  --text-xs--letter-spacing: 0em;
+  --text-sm: 0.875rem;             /* 14 — body default */
+  --text-sm--line-height: 1.5;
+  --text-sm--letter-spacing: 0em;
+  --text-base: 1rem;               /* 16 — emphasized body */
+  --text-base--line-height: 1.5;
+  --text-base--letter-spacing: 0em;
+  --text-lg: 1.125rem;             /* 18 — card titles */
+  --text-lg--line-height: 1.4;
+  --text-lg--letter-spacing: -0.011em;
+  --text-xl: 1.25rem;              /* 20 — section titles */
+  --text-xl--line-height: 1.3;
+  --text-xl--letter-spacing: -0.015em;
+  --text-2xl: 1.5rem;              /* 24 — page titles */
+  --text-2xl--line-height: 1.25;
+  --text-2xl--letter-spacing: -0.019em;
+  --text-3xl: 1.875rem;            /* 30 — hero / empty-state headline */
+  --text-3xl--line-height: 1.2;
+  --text-3xl--letter-spacing: -0.022em;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-panel: var(--panel);
+  --color-faint: var(--faint);
+  --color-chrome: var(--chrome);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-grad-from: var(--primary-grad-from);
+  --color-status-input: var(--status-input);
+  --color-status-input-fg: var(--status-input-fg);
+  --color-status-review: var(--status-review);
+  --color-meter-warn: var(--meter-warn);
+  --color-meter-warn-fg: var(--meter-warn-fg);
+  --color-phase-design: var(--phase-design);
+  --color-phase-working: var(--phase-working);
+  --color-phase-verifying: var(--phase-verifying);
+  --color-phase-done: var(--phase-done);
+  --color-live: var(--live);
+  --color-sel: var(--sel);
+  --color-user-bubble: var(--user-bubble);
+
+  --color-surface-2: var(--surface-2);
+  --color-terminal-bg: var(--terminal-bg);
+  --color-code-bg: var(--code-bg);
+  --color-border-soft: var(--border-soft);
+  --color-soft: var(--soft);
+  --color-blue: var(--blue);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+  --color-violet: var(--violet);
+  --color-neutral: var(--neutral);
+
+  --color-diff-add-bg: var(--diff-add-bg);
+  --color-diff-del-bg: var(--diff-del-bg);
+  --color-diff-add-fg: var(--diff-add-fg);
+  --color-diff-del-fg: var(--diff-del-fg);
+
+  /* Self-named shadow bridges: with `inline`, utilities emit
+     box-shadow: var(--shadow-card), resolved against the unlayered
+     :root/[data-theme] declarations above — which out-cascade Tailwind's
+     @layer theme emission. If those author declarations are ever removed
+     or renamed, these become circular and shadows silently drop. */
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+  --shadow-popover: var(--shadow-popover);
+  --shadow-primary-btn: var(--shadow-primary-btn);
+  --shadow-composer: var(--shadow-composer);
+
+  /* ---- Radius tiers ---------------------------------------------------
+     Four steps, each with one job. Concentric pairing: a 12px card with
+     ≥12px padding takes 8px inner elements; a 16px dialog takes 12px cards.
+     Mixing 4px and 12px corners inside one padding box is what makes
+     nesting look unresolved. */
+  --radius-xs: 0.375rem;  /*  6 — micro chips, tags, dots' containers */
+  --radius-sm: 0.5rem;    /*  8 — buttons, nav rows, tabs, elements nested inside a card */
+  --radius-md: 0.625rem;  /* 10 — inputs, menu items */
+  --radius-lg: 0.75rem;   /* 12 — cards, panels */
+  --radius-xl: 1rem;      /* 16 — dialogs, sheets */
+
+  /* ---- Motion ---------------------------------------------------------
+     Overriding the defaults upgrades every bare `transition*` utility at
+     once, so call sites don't each have to restate a duration. 180ms with a
+     decelerating curve reads as responsive without feeling abrupt; Tailwind's
+     stock 150ms ease is slightly too linear to feel considered. */
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --ease-ui-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --animate-live: live-pulse 1.6s ease-in-out infinite;
+  /* A thread's working mark in the sidebar: the same breath, under a name of
+     its own because it alone keeps breathing with reduced motion (see that
+     block). */
+  --animate-working: live-pulse 1.6s ease-in-out infinite;
+
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  @keyframes text-shimmer {
+    0% { background-position: 100% 0; }
+    60%, 100% { background-position: 0% 0; }
+  }
+
+  /* A fold's content grows in and out on its measured height (Radix
+     Collapsible's variable), fading as it goes. It clips only while it moves
+     (overflow in the keyframes): open, a focus ring at its edge shows. */
+  --animate-fold-open: fold-open 200ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-fold-close: fold-close 160ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes fold-open {
+    from { height: 0; opacity: 0; overflow: hidden; }
+    /* --fold-height: its content's height while it grows (Fold.tsx), past Radix's one measure. */
+    to { height: var(--fold-height, var(--radix-collapsible-content-height, auto)); opacity: 1; overflow: hidden; }
+  }
+
+  @keyframes fold-close {
+    from { height: var(--radix-collapsible-content-height, auto); opacity: 1; overflow: hidden; }
+    to { height: 0; opacity: 0; overflow: hidden; }
+  }
+
+  @keyframes setting-flash {
+    0%, 55% { background-color: color-mix(in oklab, var(--primary) 12%, transparent); }
+    100% { background-color: transparent; }
+  }
+}
+
+@layer base {
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Browser default 16px so Tailwind rem text-* classes match industry
+       norms (text-sm = 14px, text-base = 16px). Per-size line-heights from the
+       type ramp override this wherever a text-* utility is applied. */
+    line-height: 1.45;
+  }
+  #root {
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  /* Headings inherit tracking from their text-* step (see the type ramp) —
+     a single fixed value can't be right for both 18px and 30px. Only the
+     unsized fallback is set here. */
+  h1, h2, h3 { text-wrap: balance; }
+  * { border-color: var(--border); }
+
+  /* Tailwind v4 Preflight resets <button> cursor to default. Restore the
+     conventional pointer cursor for enabled buttons. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  /* Uppercase eyebrow for table heads, chips, card meta headers and field labels. Medium weight and 0.04em: the system font's caps are wider than Inter's, so the old 600 / 0.08em read as shouting. */
+  .label-micro {
+    font-size: var(--text-2xs);
+    line-height: 1.35;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* A group header in a list or navigation (the sidebar's Threads, settings
+     sections, worker groups, day headings): sentence case at the rows' size,
+     ranked by weight and colour. Caps there read as a data table. */
+  .label-group {
+    font-size: var(--text-xs);
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  /* Numeric runs (durations, counts, timestamps) that update in place. Without
+     tabular figures the row width breathes on every tick, which reads as
+     jitter. */
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Status pill: the one filled element a header may carry. Tint is the status
+     colour mixed at --pill-mix over the surface (14% dark, 12% light). */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 22px;
+    padding: 0 0.5rem;
+    border-radius: var(--radius-xs);
+    font-size: var(--text-2xs);
+    font-weight: 500;
+    white-space: nowrap;
+    flex: none;
+  }
+  .pill-amber { background: color-mix(in oklab, var(--amber) var(--pill-mix), transparent); color: var(--amber); }
+  .pill-red { background: color-mix(in oklab, var(--red) var(--pill-mix), transparent); color: var(--red); }
+  .pill-green { background: color-mix(in oklab, var(--phase-done) var(--pill-mix), transparent); color: var(--phase-done); }
+  .pill-blue { background: color-mix(in oklab, var(--phase-working) var(--pill-mix), transparent); color: var(--phase-working); }
+  .pill-cyan { background: color-mix(in oklab, var(--phase-verifying) var(--pill-mix), transparent); color: var(--phase-verifying); }
+  .pill-violet { background: color-mix(in oklab, var(--phase-design) var(--pill-mix), transparent); color: var(--phase-design); }
+  .pill-neutral { background: var(--sel); color: var(--muted-foreground); }
+
+  .status-working {
+    color: var(--phase-working);
+  }
+  .status-done {
+    color: var(--phase-done);
+  }
+  .status-waiting_user {
+    color: var(--status-input-fg);
+  }
+  .status-running_service {
+    color: var(--violet);
+  }
+  .status-idle_shell {
+    color: var(--soft);
+  }
+  .status-unknown {
+    color: var(--soft);
+  }
+
+  /* A view that scrolls under pinned bars (a worker's tabs):
+     whatever focus or a link scrolls into view lands below them, clear of
+     the bar's 16px fade. In this layer an element's own scroll-mt-*
+     utility still decides for it (the Changes tab's pinned file view). */
+  .scroll-below-pinned :where(*) {
+    scroll-margin-top: calc(var(--worker-pinned, 0px) + 1rem);
+  }
+}
+
+/* Hide xterm.js's internal vertical scrollbar (drifts into the viewport
+   when panning wide panes; we scroll via touch/wheel + "Bottom" button). */
+.xterm .xterm-scrollable-element > .scrollbar {
+  display: none !important;
+}
+
+@layer utilities {
+  /* A bar the reader drags (a wide chat table's): the app's faint thumb at
+     rest, a little brighter under the pointer, more while held. With the
+     standard properties set, Chrome on macOS draws the thumb its own bright
+     way under the pointer and while dragged; with them back at auto, Chrome
+     and Safari draw the ::-webkit-scrollbar parts instead (the base rule's
+     6px faint thumb) and take these two states. Firefox keeps the base
+     rule, and a touch screen the system's own bar. */
+  @media (pointer: fine) {
+    @supports selector(::-webkit-scrollbar) {
+      .scrollbar-drag {
+        scrollbar-width: auto;
+        scrollbar-color: auto;
+      }
+      .scrollbar-drag::-webkit-scrollbar-thumb:hover {
+        background-color: var(--scrollbar-thumb-hover);
+      }
+      .scrollbar-drag::-webkit-scrollbar-thumb:active {
+        background-color: var(--scrollbar-thumb-active);
+      }
+    }
+  }
+
+  /* Horizontal scroll without the bar. Machine output (diff --stat, ls -l,
+     anything table-shaped) has to keep its character alignment, so it cannot
+     reflow — but a scrollbar inside a chat message is noise, and hard clipping
+     gives no sign the line continues. The right-edge fade is the affordance:
+     it only shows where content actually reaches the edge, so it is invisible
+     on lines that fit. */
+  .scroll-x-quiet {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+  .scroll-x-quiet::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* A row that may be wider than its box — a tab row on a phone: it scrolls
+     without a bar and fades on whichever side has more, so the cut reads as
+     "more this way", not as clipping. The component sets `data-more` as it
+     measures, on scroll and on resize; a row that fits has none.
+     `.fade-x-edges` is the fade alone, for a row that scrolls only at some
+     widths and sets its overflow with variants (Browse's filters). */
+  .scroll-x-edges {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .scroll-x-edges::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-x-edges[data-more="right"],
+  .fade-x-edges[data-more="right"] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+  .scroll-x-edges[data-more="left"],
+  .fade-x-edges[data-more="left"] {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 1.5rem), transparent);
+  }
+  .scroll-x-edges[data-more="both"],
+  .fade-x-edges[data-more="both"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent);
+  }
+
+  /* A scrolling column whose text passes under its top and bottom edges (a
+     transcript): it fades over the last 16px rather than being cut
+     mid-line. The 16px must be the column's own padding (py-4), so at rest
+     at either end the fade covers empty space and shows nothing. */
+  .fade-y-edges {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+  }
+
+  /* A transcript row whose content drew nothing (a step with nothing to
+     show renders null inside its frame): at most a hover time is left, so
+     it takes no room and no gap, as the row's absence did before rows were
+     framed. Here and not in components: the row's own `flex` would win there. */
+  [data-slot="transcript-row"]:not(:has(> :not([data-slot="row-time"]))) {
+    display: none;
+  }
+
+  /* A row's action line (RowActionLine) keeps its 24px whether or not it
+     shows. With a mouse the row after it comes 8px closer than the column's
+     16px, so a hidden line leaves no hole between two turns. Only where a
+     drawn row follows: under the transcript's last
+     drawn row the line would reach the bottom fade, and :last-child cannot
+     say which row that is, since a row that drew nothing (above) may come
+     after it. A touch screen keeps the 16px: every line shows there, and
+     Copy's 44px touch area needs the room. */
+  @media not (pointer: coarse) {
+    [data-slot="transcript-row"]:has(> [data-slot="row-actions"]):has(~ :not([data-slot="transcript-row"]), ~ [data-slot="transcript-row"] > :not([data-slot="row-time"])) {
+      margin-bottom: -0.5rem;
+    }
+  }
+
+  /* A pinned bar that content scrolls under (a worker's tabs): what passes
+     beneath fades over 16px, as a transcript's top does. The bar must sit
+     16px above its content, so at rest the fade covers empty space. */
+  .fade-below::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    height: 1rem;
+    background: linear-gradient(to bottom, var(--background), transparent);
+    pointer-events: none;
+  }
+
+  /* Text that is at work: a lighter band sweeps across it, then rests.
+     Muted text only. */
+  .text-shimmer {
+    background: linear-gradient(90deg, var(--muted-foreground) 35%, var(--foreground) 50%, var(--muted-foreground) 65%) 0 0 / 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: text-shimmer 2.4s linear infinite;
+  }
+
+}
+
+/* One scrollbar for the whole app: thin, a faint thumb that does not change
+   on hover, no track. A base rule, so every scroller has it without
+   remembering a class (the sidebar drew the browser's own wide bar), and a
+   utility that hides a bar (.scroll-x-quiet, .scroll-x-edges) still wins.
+   The standard properties do it everywhere current, the desktop app's WebKit
+   included, and keep the system's overlay bars where the user has them.
+   Where either is set, browsers ignore the WebKit pseudo-elements; those are
+   for engines without the standard properties. A bar runs at the edge of the
+   region it scrolls: a reading column is centred inside a scroller that
+   spans its pane, never the scroller itself. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Settings search jumps to a row that is often already on screen, so the scroll
+   alone doesn't say which one it landed on. The tint holds long enough to find
+   with the eye, then leaves without a trace.
+
+   An attribute, not a class: the settings shell sets it imperatively, and React
+   rewrites `className` from JSX on the row's next re-render — which the memory
+   pane does moments later when its runs arrive — silently dropping the flash
+   mid-animation. React leaves attributes it doesn't render alone. */
+[data-setting-flash] {
+  animation: setting-flash 1.4s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* A question's line in the chat, when an answer's quote leads to it: the same
+   flash as a setting the page jumps to. */
+[data-question-flash] {
+  animation: setting-flash 1.4s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Desktop shell (Tauri): the traffic lights get their own 28px strip above
+   each column (shell/TitlebarStrip.tsx), so nothing below it differs from the
+   browser. Two earlier layouts shared the sidebar's header band with the
+   lights (first hiding the wordmark, then keeping it after a 68px spacer);
+   both broke at narrow sidebar widths. Nothing here is keyed on data-shell
+   any more; the attribute stays for the boot-time flag and its test. */
+
+/* Reduced motion: stop decorative animation loops. Breathing dots and
+   spinners go static — color/presence still carries the signal. */
+/* A phone's keyboard can leave a few hundred pixels: the composer drew over
+   a question's answer field. While a field above the composer
+   is typed in (data-answering, useAnsweringAbove), the composer steps aside
+   so the field stays in sight; it comes back when the focus leaves. Folded,
+   not hidden: it still takes the focus handed back to it when the last
+   question goes (QuestionDock). */
+@media (pointer: coarse) {
+  [data-slot="composer-box"][data-answering] [data-slot="composer-area"] {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-live,
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
+  .text-shimmer {
+    animation: none !important;
+    background: none !important;
+    color: var(--muted-foreground) !important;
+  }
+  /* Entrances and exits, not loops: they carry no signal on their own, so
+     they are dropped outright rather than shortened. A dialog or a menu still
+     opens and closes — it just doesn't travel. */
+  /* By class, prefixed or not (data-[state=open]:animate-in). */
+  [class*="animate-in"],
+  [class*="animate-out"],
+  [class*="animate-collapsible"],
+  [class*="animate-fold"] {
+    animation: none !important;
+  }
+  /* Not stopped: a thread's working dot (.animate-working) keeps breathing.
+     Frozen, its green beside the red asking dot would be told apart by
+     colour alone, and a fade moves nothing. */
+  /* This one does carry a signal — which row the search landed on — so it is
+     not dropped, only frozen. The shell clears the attribute on a timer, so
+     the tint still removes itself. */
+  [data-setting-flash],
+  [data-question-flash] {
+    animation: none !important;
+    background-color: color-mix(in oklab, var(--primary) 12%, transparent);
+  }
+}
+
+/* An overlay's enter and exit move on the house curve unless its own ease-*
+   says otherwise (a utility, which outranks this base rule). */
+@layer base {
+  [class*="animate-in"],
+  [class*="animate-out"],
+  [class*="animate-collapsible"] {
+    --tw-ease: var(--ease-ui);
+  }
+}
+
+/* On a touch screen a control's touch area reaches at least 44 by 44 CSS px
+   (WCAG 2.5.5) without changing its size or place: an invisible ::after
+   centred on it. The
+   element must be positioned (relative or absolute), and its neighbours far
+   enough apart that the areas do not overlap (WCAG counts an overlap in
+   neither); a scrolling row needs room above and below, or it clips them.
+   The same condition as the spacing and the taller rows (pointer-coarse:):
+   with any-pointer a touch laptop driven by a mouse got the areas without
+   the spacing, and a click at one button's edge landed on its neighbour.
+   The area sits under the control's own children (isolated, z-index -1), so
+   a control inside it (a tab's close) keeps its taps. */
+@utility hit {
+  @media (pointer: coarse) {
+    isolation: isolate;
+    &::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      top: min(0px, calc((100% - 44px) / 2));
+      bottom: min(0px, calc((100% - 44px) / 2));
+      left: min(0px, calc((100% - 44px) / 2));
+      right: min(0px, calc((100% - 44px) / 2));
+    }
+  }
+}

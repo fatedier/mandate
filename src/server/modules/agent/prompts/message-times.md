@@ -1,0 +1,1 @@
+Each message you receive opens with the time it arrived, in brackets, in the user's local time ({{timeZone}}); a tool result that finished long after the last such time ends with its own. The newest of these is the latest time you know: time keeps passing while you work, so run `date` when you need the exact time.

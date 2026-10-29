@@ -1,0 +1,23 @@
+# The e2e tier runs here rather than on a developer machine, so that what a
+# test depends on is declared in the image instead of inherited from whoever
+# is running it.
+#
+# One service for now. This file exists to make it cheap to add a second one
+# should a future test need another container alongside it.
+services:
+  tests:
+    build:
+      context: ..
+      dockerfile: e2e/Dockerfile
+    init: true # reap the shells tmux leaves behind; PID 1 in a container does not
+    volumes:
+      # The only thing that leaves the container. `run --rm` deletes everything
+      # else the moment the suite ends, which is why a flake here used to be
+      # unreadable: the server log, the browser console and the frame all died
+      # with it. Bound to the host so the evidence outlives the run that made it.
+      - ./.artifacts:/app/e2e/.artifacts
+    environment:
+      # tests/setup.ts refuses real network calls unless this is set. The unit
+      # tier must never set it; e2e turns it on because talking to a real
+      # server is the job.
+      MANDATE_TEST_ALLOW_NETWORK: "1"
