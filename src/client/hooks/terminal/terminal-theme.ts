@@ -1,0 +1,23 @@
+export const TERMINAL_THEME = {
+  background: "#0a0c10",
+  foreground: "#e2e3e8",
+  cursor: "#e2e3e8",
+  cursorAccent: "#0a0c10",
+  selectionBackground: "#2d4f7a",
+  black: "#0a0c10",
+  red: "#f87171",
+  green: "#34d399",
+  yellow: "#fbbf24",
+  blue: "#60a5fa",
+  magenta: "#a78bfa",
+  cyan: "#22d3ee",
+  white: "#e2e3e8",
+  brightBlack: "#737d89",
+  brightRed: "#fca5a5",
+  brightGreen: "#6ee7b7",
+  brightYellow: "#fde047",
+  brightBlue: "#93c5fd",
+  brightMagenta: "#c4b5fd",
+  brightCyan: "#67e8f9",
+  brightWhite: "#f8fafc"
+};

@@ -1,0 +1,1 @@
+Skills are procedures for kinds of work that come back: when a skill's description matches your task, load it with `skill` and follow it. Some skills were learned from earlier work and can be wrong or out of date. When a step of a skill you followed turned out wrong, missing or outdated, say so plainly in your report, with what actually worked.

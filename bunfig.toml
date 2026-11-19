@@ -1,0 +1,6 @@
+[test]
+preload = ["./tests/setup.ts"]
+# A bare `bun test` finds only the unit tier. The e2e tier runs in Docker
+# (`bun run test:e2e`); e2e/run.ts names its files as paths ("./e2e/…"),
+# which Bun takes from outside this root.
+root = "tests"

@@ -1,0 +1,267 @@
+import { useCallback, useState } from "react";
+
+import { useSearchParams } from "react-router";
+import { ACTIVITY_GROUP_KEYS, type ActivityGroupKey } from "@shared/api-contracts";
+import { PillTabs } from "@/components/PillTabs";
+import { PaneHeaderActions } from "@/shell/pane-header-slots";
+import { readEnum, withParam } from "@/lib/url-params";
+import { cn } from "@/lib/utils";
+import { BreakdownTab } from "./BreakdownTab";
+import { LOG_FILTER_PARAMS } from "./useActivityFilters";
+import { logFilterFor } from "./breakdown-model";
+import { LogsTab } from "./logs/LogsTab";
+import { OverviewTab } from "./overview/OverviewTab";
+import { 
+  ACTIVITY_WINDOW_OPTIONS,
+  DEFAULT_ACTIVITY_WINDOW_DAYS,
+  useActivitySummary
+ } from "./useActivitySummary";
+import { RefreshButton } from "@/components/RefreshButton";
+import { InlineError } from "@/components/ViewState";
+
+const ACTIVITY_TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "breakdown", label: "Breakdown" },
+  { id: "logs", label: "Logs" }
+] as const;
+
+type ActivityTab = (typeof ACTIVITY_TABS)[number]["id"];
+
+const TAB_IDS = ACTIVITY_TABS.map((tab) => tab.id) as readonly ActivityTab[];
+
+/**
+ * Three tabs over one window: the aggregate, the cut, and the stream.
+ *
+ * The page holds the 30-day summary because it survives a tab switch — the
+ * Overview is where a reader lands, and refetching it every time they came
+ * back from the log would be the same waste this rebuild removed from the
+ * other direction. The Breakdown reads the same response, which is why the
+ * grouping lives up here rather than inside the tab. The log's own query lives
+ * in `LogsTab`, which only exists while its tab is showing.
+ *
+ * Nothing here polls. Returning to a summary older than five minutes refreshes
+ * it in the background; Refresh always requests a new answer.
+ */
+export function ActivityPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Overview is the landing tab, so it carries no param.
+  const tab = readEnum<ActivityTab>(searchParams, "tab", TAB_IDS, "overview");
+  // Provider / model is the landing cut, so it carries no param either.
+  const group = readEnum<ActivityGroupKey>(searchParams, "group", ACTIVITY_GROUP_KEYS, "model");
+  // The Overview's table is the purpose grouping and the Breakdown's is the cut
+  // the reader picked, which waits in the url while they are on the Overview.
+  //
+  // The log is neither: it reads no summary at all — `LogsTab` is handed a
+  // refresh token and nothing else — so it asks for nothing, and the answer
+  // already in hand is held for whichever tab the reader returns to. Naming a
+  // grouping here instead fetched a cut nobody looks at on the way in and
+  // fetched the previous one back on the way out, and while that second answer
+  // was in flight the tab stood on the other cut: the Overview's table popped
+  // in on every return from the log.
+  // The window applies to the whole page, so it is read once here rather than
+  // per tab. An unknown value falls back the way an unknown grouping does: a
+  // stale link answers with the default rather than nothing.
+  const windowDays = readWindowDays(searchParams);
+
+  const requestedGroup: ActivityGroupKey | null =
+    tab === "overview" ? "purpose" : tab === "breakdown" ? group : null;
+  const {
+    data: summaryData,
+    error: summaryError,
+    loading: summaryLoading,
+    refresh: refreshSummary
+  } = useActivitySummary(requestedGroup, windowDays);
+  // A day picked on the Overview: one of the dates its chart draws, or none.
+  // Its answer is asked for beside the window's, which the chart still reads.
+  const dayParam = searchParams.get("day");
+  const pickedDay = tab === "overview" && dayParam && summaryData?.dates.includes(dayParam) ? dayParam : null;
+  const {
+    data: dayData,
+    error: dayError,
+    refresh: refreshDay
+  } = useActivitySummary(pickedDay ? "purpose" : null, windowDays, pickedDay);
+  const pickDay = useCallback(
+    (next: string | null) => {
+      setSearchParams((prev) => withParam(prev, "day", next), { replace: true });
+    },
+    [setSearchParams]
+  );
+  const [logsRefreshToken, setLogsRefreshToken] = useState(0);
+
+  const setTab = useCallback(
+    (next: ActivityTab) => {
+      setSearchParams((prev) => withParam(prev, "tab", next === "overview" ? null : next), {
+        replace: true
+      });
+    },
+    [setSearchParams]
+  );
+
+  const setWindowDays = useCallback(
+    (next: number) => {
+      // A picked day is a day of the old window: a new window lets it go.
+      setSearchParams(
+        (prev) => withParam(
+          withParam(prev, "day", null),
+          "days",
+          next === DEFAULT_ACTIVITY_WINDOW_DAYS ? null : String(next)
+        ),
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setGroup = useCallback(
+    (next: ActivityGroupKey) => {
+      setSearchParams((prev) => withParam(prev, "group", next === "model" ? null : next), {
+        replace: true
+      });
+    },
+    [setSearchParams]
+  );
+
+  // The cut the rows on screen were drawn from, which is not always the one the
+  // url names: the Overview's table is purposes whatever the reader last chose,
+  // and on Breakdown a regrouping still in flight leaves the previous answer
+  // showing. A key resolved through any other dimension filters the log by
+  // something that row was never about.
+  const renderedGroup = summaryData?.group ?? group;
+
+  // A group is a question about a set of calls; the answer is those calls.
+  const openGroup = useCallback(
+    (key: string) => {
+      // Some groups name something the log has no filter for — calls with no
+      // purpose at all, say. Jumping to an unfiltered log would answer a
+      // question nobody asked, so the row simply does not lead anywhere.
+      const filter = logFilterFor(renderedGroup, key);
+      if (!filter) return;
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("tab", "logs");
+          for (const name of LOG_FILTER_PARAMS) next.delete(name);
+          for (const [name, value] of Object.entries(filter)) next.set(name, value);
+          return next;
+        },
+        { replace: false }
+      );
+    },
+    [renderedGroup, setSearchParams]
+  );
+
+  const refreshActiveTab = useCallback(() => {
+    if (tab === "logs") setLogsRefreshToken((token) => token + 1);
+    else {
+      void refreshSummary();
+      if (pickedDay) void refreshDay();
+    }
+  }, [tab, refreshSummary, pickedDay, refreshDay]);
+
+  // Only the summary's work is visible from here. The log reports its own,
+  // beside the list it is reloading, because that hook lives in the tab.
+  const busy = tab !== "logs" && summaryLoading;
+
+  return (
+    <div
+      data-slot="page-column"
+      className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-1 pointer-coarse:pt-2 pb-6 md:px-8"
+    >
+      {/* The window belongs to the page, not to a tab, so it sits in the header
+          band beside Refresh rather than inside any one panel — every figure
+          below it, on all three tabs, is read over this span. */}
+      <PaneHeaderActions>
+        <div
+          role="group"
+          aria-label="Window"
+          data-slot="activity-window"
+          className="flex items-center gap-0.5 rounded-md border border-border-soft p-0.5"
+        >
+          {ACTIVITY_WINDOW_OPTIONS.map((option) => (
+            <button
+              key={option.days}
+              type="button"
+              aria-pressed={option.days === windowDays}
+              aria-label={`Last ${option.label}`}
+              onClick={() => setWindowDays(option.days)}
+              className={cn(
+                // At least 44 wide on a touch screen: segments sit side by
+                // side, so only their own width keeps the touch areas apart.
+                "hit relative num inline-flex h-7 items-center justify-center rounded px-2 text-2xs transition-colors pointer-coarse:min-w-11",
+                option.days === windowDays
+                  ? "bg-sel font-semibold text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {option.short}
+            </button>
+          ))}
+        </div>
+        <RefreshButton refreshing={busy} onRefresh={refreshActiveTab} size="icon-xs" />
+      </PaneHeaderActions>
+      {/* Only the showing tab names a panel (PillTabs' idPrefix pairing). The
+          others have no panel in the document — that is what stops the log's
+          query running — and an aria-controls pointing at an id that is not
+          there is a dangling reference, not a hint. */}
+      <PillTabs
+        items={ACTIVITY_TABS}
+        value={tab}
+        onChange={setTab}
+        aria-label="Activity views"
+        fadesNext
+        idPrefix="activity"
+      />
+
+      {tab === "logs" ? (
+        <div role="tabpanel" id="activity-panel-logs" aria-labelledby="activity-tab-logs">
+          <LogsTab refreshToken={logsRefreshToken} windowDays={windowDays} onRetry={() => setLogsRefreshToken((token) => token + 1)} />
+        </div>
+      ) : (
+        // Overview and Breakdown are two readings of the same response, so the
+        // one failure it can produce is reported the same way on both.
+        <div
+          role="tabpanel"
+          id={`activity-panel-${tab}`}
+          aria-labelledby={`activity-tab-${tab}`}
+        >
+          {summaryError && (
+            <InlineError className="mb-3" detail={summaryError} onRetry={() => void refreshSummary()}>
+              {summaryData ? "Couldn't refresh activity. Showing the last loaded figures." : "Couldn't load activity."}
+            </InlineError>
+          )}
+          {tab === "overview" ? (
+            <OverviewTab
+              data={summaryData}
+              loading={summaryLoading}
+              day={pickedDay}
+              windowDays={windowDays}
+              dayData={dayData}
+              dayError={dayError}
+              onRetryDay={() => void refreshDay()}
+              onPickDay={pickDay}
+            />
+          ) : (
+            <BreakdownTab
+              data={summaryData}
+              loading={summaryLoading}
+              group={group}
+              onSelectGroup={setGroup}
+              onSelectRow={openGroup}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The window the url asks for, or the default. Only the spans the selector
+ *  offers are honoured: the endpoint clamps anything to 1..90, so a hand-typed
+ *  `?days=53` would answer a window no control on the page can express or
+ *  clear, and the reader would have no way back to a named one. */
+function readWindowDays(params: URLSearchParams): number {
+  const raw = Number(params.get("days"));
+  return ACTIVITY_WINDOW_OPTIONS.some((option) => option.days === raw)
+    ? raw
+    : DEFAULT_ACTIVITY_WINDOW_DAYS;
+}

@@ -1,0 +1,20 @@
+.git
+node_modules
+dist
+bin
+src-tauri/target
+src-tauri/binaries/
+**/.DS_Store
+*.log
+e2e/.artifacts
+
+# Local configuration, credentials, and private working notes.
+docs/superpowers/
+.superpowers/
+.claude/
+.playwright-mcp/
+**/.env*
+**/config.json
+**/auth.json
+**/mandate.db
+**/mandate.db-*

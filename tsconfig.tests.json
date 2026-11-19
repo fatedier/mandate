@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "react", "react-dom", "bun-types"],
+    "noUncheckedIndexedAccess": false,
+    "noImplicitAny": false
+  },
+  "include": ["tests", "e2e", "src/client", "src/shared", "src/server"],
+  "exclude": ["src/server/server-env.d.ts"]
+}
